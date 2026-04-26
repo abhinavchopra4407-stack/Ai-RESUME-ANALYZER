@@ -7,6 +7,7 @@ import base64
 import time
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
+     
 if "pdf_ready" not in st.session_state:
     st.session_state.pdf_ready = False
 st.set_page_config(
@@ -23,8 +24,6 @@ def create_pdf(report_data):
     elements = []
 
     # Title
-    elements.append(Paragraph("AI Resume Analysis Report", styles['Title']))
-    elements.append(Spacer(1, 20))
 
     # Job Role
     elements.append(Paragraph(f"<b>Job Role:</b> {report_data['job_role']}", styles['Normal']))
@@ -50,38 +49,37 @@ def create_pdf(report_data):
 
     doc.build(elements)
 def set_bg(image_file):
+    import base64
     with open(image_file, "rb") as f:
         data = base64.b64encode(f.read()).decode()
 
-        st.markdown(f"""
-        <style>
+    st.markdown(f"""
+    <style>
 
-        /* Make header transparent */
-        header {{
-            background: transparent !important;
-        }}
+    /* Transparent header */
+    header {{
+        background: transparent !important;
+    }}
 
-        /* Remove white toolbar background */
-        [data-testid="stHeader"] {{
-            background: transparent !important;
-        }}
+    [data-testid="stHeader"] {{
+        background: transparent !important;
+    }}
 
-        /* Remove top padding so image goes full */
-        .block-container {{
-            padding-top: 0rem;
-        }}
+    /* Remove spacing */
+    .block-container {{
+        padding-top: 0rem;
+    }}
 
-        /* Full background image */
-        .stApp {{
-            background-image: url("data:image/png;base64,{data}");
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-        }}
+    /* Full background */
+    .stApp {{
+        background-image: url("data:image/png;base64,{data}");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+    }}
 
-        </style>
-        """, unsafe_allow_html=True)
- 
+    </style>
+    """, unsafe_allow_html=True)
 # ---------------- PAGE CONFIG ----------------
 
  
