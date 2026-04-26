@@ -573,12 +573,11 @@ if uploaded_file is not None:
                         "Missing": "#ef4444"
                     }
                 )
-
-                st.plotly_chart(fig, use_container_width=True)
                 import plotly.io as pio
-
+                st.plotly_chart(fig, use_container_width=True)
+            
                 # Save pie chart as image
-                st.plotly_chart(fig)
+                
                 report_data = {
     "job_role": job_role,
     "score": score,
