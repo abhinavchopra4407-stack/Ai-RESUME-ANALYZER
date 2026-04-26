@@ -571,7 +571,7 @@ if uploaded_file is not None:
                     }
                 )
                 import plotly.io as pio
-                
+                st.plotly_chart(fig, use_container_width=True)
             
                 # Save pie chart as image
                 
