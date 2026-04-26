@@ -7,10 +7,43 @@ import base64
 import time
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
-# ---------------- SESSION STATE ----------------
+ # 1. Session state
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
-         
+
+
+# 2. LOGIN BLOCK
+if not st.session_state.logged_in:
+
+    st.title("🔐 Login")
+
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+
+    if st.button("Login"):
+        if username == "admin" and password == "1234":
+            st.session_state.logged_in = True
+            st.rerun()
+        else:
+            st.error("Invalid credentials")
+
+    st.stop()   # 🚨 THIS STOPS EVERYTHING BELOW
+
+
+# 3. MAIN APP (ONLY AFTER LOGIN)
+
+# Logout button
+col1, col2 = st.columns([9,1])
+with col2:
+    if st.button("Logout"):
+        st.session_state.logged_in = False
+        st.rerun()
+
+
+# 👉 NOW ALL YOUR APP UI COMES HERE
+st.title("🤖 AI Resume Analyzer")
+
+uploaded_file = st.file_uploader("Upload Resume")    
 if "pdf_ready" not in st.session_state:
     st.session_state.pdf_ready = False
 st.set_page_config(
@@ -370,13 +403,6 @@ if "analyze" not in st.session_state:
  
 # ---------------- UI ----------------
 st.title("🤖 AI Resume Analyzer")
-# ---------------- LOGOUT BUTTON ----------------
-col1, col2 = st.columns([9,1])
-
-with col2:
-    if st.button("Logout"):
-        st.session_state.logged_in = False
-        st.rerun()
 
 # Create 3 columns (left empty, center content, right empty)
 col1, col2, col3 = st.columns([1,2,1])
@@ -408,29 +434,6 @@ h1 {
         label_visibility="collapsed"
     )
     set_bg("robot.jpg")
-    # ---------------- LOGIN PAGE ----------------
-if not st.session_state.logged_in:
-
-    st.markdown("""
-    <h1 style='text-align:center;'>🔐 Login</h1>
-    <p style='text-align:center;'>Access AI Resume Analyzer</p>
-    """, unsafe_allow_html=True)
-
-    col1, col2, col3 = st.columns([1,2,1])
-
-    with col2:
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-
-        if st.button("Login"):
-            if username == "admin" and password == "1234":
-                st.session_state.logged_in = True
-                st.success("Login successful ✅")
-                st.rerun()
-            else:
-                st.error("Invalid credentials ❌")
-
-    st.stop()
 if uploaded_file is not None:
 
     try:
@@ -682,28 +685,28 @@ if uploaded_file is not None:
         SCORE: {score}%
         """
                 
-        if st.button("Generate PDF Report"):
+if st.button("Generate PDF Report"):
 
-            report_data = {
-                "job_role": job_role,
-                "score": score,
-                "matched": matched,
-                "missing": missing
-            }
+    report_data = {
+        "job_role": job_role,
+        "score": score,
+        "matched": matched,
+        "missing": missing
+    }
 
-            create_pdf(report_data)   # ✅ NOW INSIDE
+    create_pdf(report_data)   # ✅ NOW INSIDE
 
-            st.success("PDF Generated Successfully ✅")
+    st.success("PDF Generated Successfully ✅")
 
-            # Download button
-            with open("resume_report.pdf", "rb") as f:
-                st.download_button(
-                    label="📥 Download Report",
-                    data=f,
-                    file_name="resume_report.pdf",
-                    mime="application/pdf"
-                )
+    # Download button
+    with open("resume_report.pdf", "rb") as f:
+        st.download_button(
+            label="📥 Download Report",
+            data=f,
+            file_name="resume_report.pdf",
+            mime="application/pdf"
+        )
                 # Projects
-                st.subheader("💡 Suggested Projects")
-                for p in PROJECTS.get(job_role.lower(), []):
-                    st.write("🚀", p)
+        st.subheader("💡 Suggested Projects")
+        for p in PROJECTS.get(job_role.lower(), []):
+                   st.write("🚀", p)
