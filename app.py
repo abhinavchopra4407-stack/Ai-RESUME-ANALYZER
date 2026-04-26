@@ -593,8 +593,15 @@ if uploaded_file is not None:
 
         SCORE: {score}%
         """
-
-        if st.button("📄 Generate PDF Report"):
+                st.write(report_data)
+                if st.button("Generate PDF Report"):
+                    report_data = {
+                "job_role": job_role,
+                "score": score,
+                "matched": matched,
+                "missing": missing
+            }
+            create_pdf(report_data)
     
 
             with open("resume_report.pdf", "rb") as f:
