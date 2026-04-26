@@ -23,15 +23,17 @@ def create_pdf(report_data):
 
     elements = []
 
-    # Title
+# Title
+    elements.append(Paragraph("AI Resume Analysis Report", styles['Title']))
+    elements.append(Spacer(1, 20))
+
+    # Score Box
+    elements.append(Paragraph(f"<b>Final Score:</b> {report_data['score']}%", styles['Heading2']))
+    elements.append(Spacer(1, 15))
 
     # Job Role
-    elements.append(Paragraph(f"<b>Job Role:</b> {report_data['job_role']}", styles['Normal']))
-    elements.append(Spacer(1, 10))
-
-    # Score
-    elements.append(Paragraph(f"<b>Score:</b> {report_data['score']}%", styles['Normal']))
-    elements.append(Spacer(1, 10))
+    elements.append(Paragraph(f"<b>Target Role:</b> {report_data['job_role']}", styles['Normal']))
+    elements.append(Spacer(1, 15))
 
     # Matched Skills
     elements.append(Paragraph("<b>Matched Skills:</b>", styles['Heading2']))
@@ -44,7 +46,10 @@ def create_pdf(report_data):
     for skill in report_data['missing']:
         elements.append(Paragraph(f"• {skill}", styles['Normal']))
     elements.append(Spacer(1, 20))
-
+    elements.append(Paragraph("<b>Recommended Learning Path:</b>", styles['Heading2']))
+    for skill in report_data['missing'][:5]:
+        elements.append(Paragraph(f"• Learn {skill} through projects and practice", styles['Normal']))
+    elements.append(Spacer(1, 20))
 
 
     doc.build(elements)
@@ -442,6 +447,22 @@ if uploaded_file is not None:
 
                     user_skills = extract_skills(resume_text)
                     matched, missing, score = match_skills(user_skills, job_role)
+                    # ---------------- ROLE SUGGESTION ----------------
+                    st.subheader("🎯 Recommended Roles")
+
+                    role_scores = {}
+
+                    for role, skills_list in SKILL_DB.items():
+                        match_count = sum(1 for s in skills_list if s in user_skills)
+                        role_scores[role] = match_count
+
+                    # Sort roles by match
+                    sorted_roles = sorted(role_scores.items(), key=lambda x: x[1], reverse=True)
+
+                    # Top 3 roles
+                    top_roles = [r[0].title() for r in sorted_roles[:3]]
+
+                    st.success(f"Best suited roles: {', '.join(top_roles)}")
                     st.subheader("📊 Score Breakdown")
 
                     # Skill match percentage (already calculated)
@@ -462,6 +483,22 @@ if uploaded_file is not None:
                     st.write(f"✔ Skill Match: {skill_score}%")
                     st.write(f"✔ Resume Strength: {resume_strength}%")
                     st.write(f"🎯 Final Score: {final_score}%")
+                    
+                    # ---------------- RESUME STRENGTH FEEDBACK ----------------
+                    st.subheader("📊 Resume Strength Analysis")
+
+                    if score < 40:
+                        st.error("Your resume is weak for this role. Focus on building core skills and projects.")
+                    elif score < 70:
+                        st.warning("Your resume is average. Improve by adding more relevant skills and projects.")
+                    else:
+                        st.success("Your resume is strong and well aligned with the job role!")
+
+                    # Extra insight
+                    if len(missing) > len(matched):
+                        st.info("You are missing more skills than you have. Focus on skill development.")
+                    else:
+                        st.info("Good skill coverage. Now focus on projects and real-world experience.")
                     
                     st.subheader("📌 Feedback")
 
