@@ -649,23 +649,27 @@ if uploaded_file is not None:
         SCORE: {score}%
         """
                 
-                if st.button("Generate PDF Report"):
-                    report_data = {
-                        "job_role": job_role,
-                        "score": score,
-                        "matched": matched,
-                        "missing": missing
-                    }
+        if st.button("Generate PDF Report"):
 
-                    create_pdf(report_data)
-                    if st.session_state.pdf_ready:
-                        with open("resume_report.pdf", "rb") as f:
-                            st.download_button(
-                                label="📥 Download Report",
-                                data=f,
-                                file_name="resume_report.pdf",
-                                mime="application/pdf"
-                            )
+            report_data = {
+                "job_role": job_role,
+                "score": score,
+                "matched": matched,
+                "missing": missing
+            }
+
+            create_pdf(report_data)   # ✅ NOW INSIDE
+
+            st.success("PDF Generated Successfully ✅")
+
+            # Download button
+            with open("resume_report.pdf", "rb") as f:
+                st.download_button(
+                    label="📥 Download Report",
+                    data=f,
+                    file_name="resume_report.pdf",
+                    mime="application/pdf"
+                )
                 # Projects
                 st.subheader("💡 Suggested Projects")
                 for p in PROJECTS.get(job_role.lower(), []):
