@@ -7,43 +7,7 @@ import base64
 import time
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
- # 1. Session state
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-
-
-# 2. LOGIN BLOCK
-if not st.session_state.logged_in:
-
-    st.title("🔐 Login")
-
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-
-    if st.button("Login"):
-        if username == "admin" and password == "1234":
-            st.session_state.logged_in = True
-            st.rerun()
-        else:
-            st.error("Invalid credentials")
-
-    st.stop()   # 🚨 THIS STOPS EVERYTHING BELOW
-
-
-# 3. MAIN APP (ONLY AFTER LOGIN)
-
-# Logout button
-col1, col2 = st.columns([9,1])
-with col2:
-    if st.button("Logout"):
-        st.session_state.logged_in = False
-        st.rerun()
-
-
-# 👉 NOW ALL YOUR APP UI COMES HERE
-st.title("🤖 AI Resume Analyzer")
-
-uploaded_file = st.file_uploader("Upload Resume")    
+     
 if "pdf_ready" not in st.session_state:
     st.session_state.pdf_ready = False
 st.set_page_config(
