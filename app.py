@@ -36,18 +36,15 @@ def create_pdf(report_data):
     elements.append(Paragraph("<b>Matched Skills:</b>", styles['Heading2']))
     for skill in report_data['matched']:
         elements.append(Paragraph(f"• {skill}", styles['Normal']))
-
     elements.append(Spacer(1, 10))
 
     # Missing Skills
     elements.append(Paragraph("<b>Missing Skills:</b>", styles['Heading2']))
     for skill in report_data['missing']:
         elements.append(Paragraph(f"• {skill}", styles['Normal']))
-
     elements.append(Spacer(1, 20))
 
-    # Add chart image
-    elements.append(Image("chart.png", width=400, height=300))
+
 
     doc.build(elements)
 def set_bg(image_file):
@@ -598,7 +595,7 @@ if uploaded_file is not None:
         """
 
         if st.button("📄 Generate PDF Report"):
-            create_pdf(report_data)
+    
 
             with open("resume_report.pdf", "rb") as f:
                 st.download_button(
