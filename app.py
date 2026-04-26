@@ -387,7 +387,7 @@ def login_page():
             st.error("Invalid credentials ❌")
             if not st.session_state.logged_in:
              login_page()
-    st.stop()   # 🚨 THIS IS CRITICAL
+            st.stop()   # 🚨 THIS IS CRITICAL
 st.title("🤖 AI Resume Analyzer")
 col1, col2 = st.columns([6,1])
 
@@ -698,6 +698,6 @@ if uploaded_file is not None:
                         mime="application/pdf"
                     )
                 # Projects
-        st.subheader("💡 Suggested Projects")
-        for p in PROJECTS.get(job_role.lower(), []):
-                   st.write("🚀", p)
+                    st.subheader("💡 Suggested Projects")
+                    for p in PROJECTS.get(job_role.lower(), []):
+                            st.write("🚀", p)
