@@ -578,7 +578,7 @@ if uploaded_file is not None:
                 import plotly.io as pio
 
                 # Save pie chart as image
-                pio.write_image(fig, "chart.png")
+                st.plotly_chart(fig)
                 report_data = {
     "job_role": job_role,
     "score": score,
