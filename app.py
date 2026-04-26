@@ -596,22 +596,21 @@ if uploaded_file is not None:
                 st.write(report_data)
                 if st.button("Generate PDF Report"):
                     report_data = {
-                "job_role": job_role,
-                "score": score,
-                "matched": matched,
-                "missing": missing
-            }
-            create_pdf(report_data)
-    
+                        "job_role": job_role,
+                        "score": score,
+                        "matched": matched,
+                        "missing": missing
+                    }
 
-            with open("resume_report.pdf", "rb") as f:
-                st.download_button(
-                    label="📥 Download Report",
-                    data=f,
-                    file_name="resume_report.pdf",
-                    mime="application/pdf"
-                )
+                    create_pdf(report_data)
 
+                    with open("resume_report.pdf", "rb") as f:
+                        st.download_button(
+                            label="📥 Download Report",
+                            data=f,
+                            file_name="resume_report.pdf",
+                            mime="application/pdf"
+                        )
                 # Projects
                 st.subheader("💡 Suggested Projects")
                 for p in PROJECTS.get(job_role.lower(), []):
