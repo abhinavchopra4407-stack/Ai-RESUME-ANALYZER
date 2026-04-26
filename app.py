@@ -10,7 +10,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 if "pdf_ready" not in st.session_state:
     st.session_state.pdf_ready = False
 st.set_page_config(
-    page_title="AI Resume Analyzer",
+    page_title="",
     page_icon="🤖",
     layout="wide"
 )
@@ -53,16 +53,22 @@ def set_bg(image_file):
     with open(image_file, "rb") as f:
         data = base64.b64encode(f.read()).decode()
 
-    st.markdown(f"""
-    <style>
-    .stApp {{
-        background-image: url("data:image/png;base64,{data}");
-        background-size: cover;
-        background-position: center;
-        background-attachment: fixed;
-    }}
-    </style>
-    """, unsafe_allow_html=True)
+        st.markdown(f"""
+        <style>
+        header {{visibility: hidden;}}
+
+        .block-container {{
+            padding-top: 0rem;
+        }}
+
+        .stApp {{
+            background-image: url("data:image/png;base64,{data}");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }}
+        </style>
+        """, unsafe_allow_html=True)
  
 # ---------------- PAGE CONFIG ----------------
 
