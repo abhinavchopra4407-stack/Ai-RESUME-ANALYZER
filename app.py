@@ -7,7 +7,10 @@ import base64
 import time
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
-     
+# ---------------- SESSION STATE ----------------
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+         
 if "pdf_ready" not in st.session_state:
     st.session_state.pdf_ready = False
 st.set_page_config(
@@ -367,6 +370,13 @@ if "analyze" not in st.session_state:
  
 # ---------------- UI ----------------
 st.title("🤖 AI Resume Analyzer")
+# ---------------- LOGOUT BUTTON ----------------
+col1, col2 = st.columns([9,1])
+
+with col2:
+    if st.button("Logout"):
+        st.session_state.logged_in = False
+        st.rerun()
 
 # Create 3 columns (left empty, center content, right empty)
 col1, col2, col3 = st.columns([1,2,1])
@@ -398,6 +408,29 @@ h1 {
         label_visibility="collapsed"
     )
     set_bg("robot.jpg")
+    # ---------------- LOGIN PAGE ----------------
+if not st.session_state.logged_in:
+
+    st.markdown("""
+    <h1 style='text-align:center;'>🔐 Login</h1>
+    <p style='text-align:center;'>Access AI Resume Analyzer</p>
+    """, unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns([1,2,1])
+
+    with col2:
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+
+        if st.button("Login"):
+            if username == "admin" and password == "1234":
+                st.session_state.logged_in = True
+                st.success("Login successful ✅")
+                st.rerun()
+            else:
+                st.error("Invalid credentials ❌")
+
+    st.stop()
 if uploaded_file is not None:
 
     try:
