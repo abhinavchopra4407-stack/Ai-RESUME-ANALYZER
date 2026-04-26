@@ -7,6 +7,8 @@ import base64
 import time
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
+if "pdf_ready" not in st.session_state:
+    st.session_state.pdf_ready = False
 st.set_page_config(
     page_title="AI Resume Analyzer",
     page_icon="🤖",
@@ -593,7 +595,7 @@ if uploaded_file is not None:
 
         SCORE: {score}%
         """
-                st.write(report_data)
+                
                 if st.button("Generate PDF Report"):
                     report_data = {
                         "job_role": job_role,
@@ -603,14 +605,14 @@ if uploaded_file is not None:
                     }
 
                     create_pdf(report_data)
-
-                    with open("resume_report.pdf", "rb") as f:
-                        st.download_button(
-                            label="📥 Download Report",
-                            data=f,
-                            file_name="resume_report.pdf",
-                            mime="application/pdf"
-                        )
+                    if st.session_state.pdf_ready:
+                        with open("resume_report.pdf", "rb") as f:
+                            st.download_button(
+                                label="📥 Download Report",
+                                data=f,
+                                file_name="resume_report.pdf",
+                                mime="application/pdf"
+                            )
                 # Projects
                 st.subheader("💡 Suggested Projects")
                 for p in PROJECTS.get(job_role.lower(), []):
