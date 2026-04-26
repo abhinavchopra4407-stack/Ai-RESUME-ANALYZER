@@ -63,7 +63,7 @@ def set_bg(image_file):
     """, unsafe_allow_html=True)
  
 # ---------------- PAGE CONFIG ----------------
-st.set_page_config(page_title="AI Resume Analyzer", layout="wide")
+
  
 # ---------------- STYLING ----------------
 st.markdown("""
@@ -529,8 +529,8 @@ if uploaded_file is not None:
                     st.subheader("📚 Skill Improvement Guide")
 
                     for skill in missing:
-                        suggestion = SKILL_GUIDE.get(skill.lower(), "Practice this skill with real-world projects")
-                    for s in suggestions:
+                        suggestion = SKILL_GUIDE.get(skill.lower(), "Practice this skill")
+
                         st.markdown(f"""
                         <div style="
                             background-color:#1e293b;
@@ -538,7 +538,7 @@ if uploaded_file is not None:
                             margin:6px;
                             border-radius:10px;
                             color:#38bdf8;">
-                            👉 {s}
+                            👉 {skill}: {suggestion}
                         </div>
                         """, unsafe_allow_html=True)
 
