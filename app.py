@@ -53,16 +53,34 @@ def set_bg(image_file):
     with open(image_file, "rb") as f:
         data = base64.b64encode(f.read()).decode()
 
-    st.markdown(f"""
-    <style>
-    .stApp {{
-        background-image: url("data:image/png;base64,{data}");
-        background-size: cover;
-        background-position: cover;
-        background-attachment: fixed;
-    }}
-    </style>
-    """, unsafe_allow_html=True)
+        st.markdown(f"""
+        <style>
+
+        /* Make header transparent */
+        header {{
+            background: transparent !important;
+        }}
+
+        /* Remove white toolbar background */
+        [data-testid="stHeader"] {{
+            background: transparent !important;
+        }}
+
+        /* Remove top padding so image goes full */
+        .block-container {{
+            padding-top: 0rem;
+        }}
+
+        /* Full background image */
+        .stApp {{
+            background-image: url("data:image/png;base64,{data}");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }}
+
+        </style>
+        """, unsafe_allow_html=True)
  
 # ---------------- PAGE CONFIG ----------------
 
