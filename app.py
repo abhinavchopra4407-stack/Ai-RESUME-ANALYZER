@@ -32,13 +32,7 @@ def login_page():
 if not st.session_state.logged_in:
     login_page()
     st.stop()
-    col1, col2 = st.columns([6,1])
-
-with col2:
-    if st.button("🚪 Logout"):
-        st.session_state.logged_in = False
-        st.rerun()
-     
+         
 if "pdf_ready" not in st.session_state:
     st.session_state.pdf_ready = False
 st.set_page_config(
@@ -155,6 +149,12 @@ button {
 </style>
 """, unsafe_allow_html=True)
 set_bg("robot.jpg")
+col1, col2 = st.columns([6,1])
+
+with col2:
+    if st.button("🚪 Logout"):
+        st.session_state.logged_in = False
+        st.rerun()
 # ---------------- EXTRACT TEXT ----------------
 def extract_text(file):
     pdf_reader = PyPDF2.PdfReader(file)
