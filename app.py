@@ -9,12 +9,22 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 
 # ---------------- LOGIN STATE ----------------
+def login_page():
+    st.markdown("## 🔐 Login")
+
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+
+    if st.button("Login"):
+        if username == "admin" and password == "1234":
+            st.session_state.logged_in = True
+            st.success("Login successful ✅")
+            st.rerun()
+        else:
+            st.error("Invalid credentials ❌")
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
-    # 🔐 LOGIN CHECK (VERY IMPORTANT)
-if not st.session_state.logged_in:
-    login_page()
-    st.stop() 
+     
 if "pdf_ready" not in st.session_state:
     st.session_state.pdf_ready = False
 st.set_page_config(
@@ -386,16 +396,14 @@ def login_page():
             st.session_state.logged_in = True
             st.success("Login successful ✅")
             st.rerun()
-        else:
-            st.error("Invalid credentials ❌")
           # 🚨 THIS IS CRITICAL
 st.title("🤖 AI Resume Analyzer")
-if st.session_state.logged_in:
-    col1, col2 = st.columns([6,1])
-    with col2:
-        if st.button("🚪 Logout"):
-            st.session_state.logged_in = False
-            st.rerun()
+col1, col2 = st.columns([6,1])
+
+with col2:
+    if st.button("🚪 Logout"):
+        st.session_state.logged_in = False
+        st.rerun()
 # Create 3 columns (left empty, center content, right empty)
 col1, col2, col3 = st.columns([1,2,1])
 
