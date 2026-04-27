@@ -32,6 +32,12 @@ def login_page():
 if not st.session_state.logged_in:
     login_page()
     st.stop()
+    col1, col2 = st.columns([6,1])
+
+with col2:
+    if st.button("🚪 Logout"):
+        st.session_state.logged_in = False
+        st.rerun()
      
 if "pdf_ready" not in st.session_state:
     st.session_state.pdf_ready = False
