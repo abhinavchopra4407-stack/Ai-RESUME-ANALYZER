@@ -48,13 +48,10 @@ def login_page():
         else:
             st.error("Invalid credentials ❌")
             if not st.session_state.get("logged_in", False):
-
-
-# 🚨 MUST BE HERE
-                if not st.session_state.logged_in:
-                    set_bg("logo.png")   # ← your image here
+               set_bg("logo.png")   # ← your image here
             login_page()
             st.stop()
+
          
 if "pdf_ready" not in st.session_state:
     st.session_state.pdf_ready = False
