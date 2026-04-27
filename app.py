@@ -9,6 +9,11 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 
 # ---------------- LOGIN STATE ----------------
+# ---------------- LOGIN SYSTEM ----------------
+
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
 def login_page():
     st.title("🔐 Login")
 
@@ -22,11 +27,11 @@ def login_page():
             st.rerun()
         else:
             st.error("Invalid credentials ❌")
-            if not st.session_state.logged_in:
-                login_page()
+
+# 🚨 MUST BE HERE
+if not st.session_state.logged_in:
+    login_page()
     st.stop()
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
      
 if "pdf_ready" not in st.session_state:
     st.session_state.pdf_ready = False
