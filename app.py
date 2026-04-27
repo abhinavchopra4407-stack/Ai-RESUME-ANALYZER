@@ -8,8 +8,7 @@ import time
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 
-# ---------------- LOGIN STATE ----------------
-# ---------------- LOGIN SYSTEM ----------------
+# ---------------- LOGIN STATE -------------
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
