@@ -414,9 +414,9 @@ st.title("🤖 AI Resume Analyzer")
 col1, col2 = st.columns([6,1])
 
 with col2:
-    if st.button("🚪 Logout"):
-        st.session_state.logged_in = False
-        st.rerun()
+    st.button("🚪 Logout", key="logout_btn")
+    st.session_state.logged_in = False
+    st.rerun()
 # Create 3 columns (left empty, center content, right empty)
 col1, col2, col3 = st.columns([1,2,1])
 
