@@ -9,7 +9,28 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 
 # ---------------- LOGIN STATE -------------
+def set_bg(image_file):
+    with open(image_file, "rb") as f:
+        encoded = base64.b64encode(f.read()).decode()
 
+    st.markdown(f"""
+    <style>
+    .stApp {{
+        background-image: url("data:image/png;base64,{encoded}");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+    }}
+
+    /* Make content slightly dark for readability */
+    .main {{
+        background-color: rgba(0,0,0,0.5);
+        padding: 20px;
+        border-radius: 10px;
+    }}
+    </style>
+    """, unsafe_allow_html=True)
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
@@ -26,11 +47,14 @@ def login_page():
             st.rerun()
         else:
             st.error("Invalid credentials ❌")
+            if not st.session_state.get("logged_in", False):
+
 
 # 🚨 MUST BE HERE
-if not st.session_state.logged_in:
-    login_page()
-    st.stop()
+                if not st.session_state.logged_in:
+                    set_bg("logo.png")   # ← your image here
+            login_page()
+            st.stop()
          
 if "pdf_ready" not in st.session_state:
     st.session_state.pdf_ready = False
