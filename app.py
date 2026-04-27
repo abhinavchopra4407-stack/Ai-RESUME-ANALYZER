@@ -10,7 +10,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 
 # ---------------- LOGIN STATE ----------------
 def login_page():
-    st.markdown("## 🔐 Login")
+    st.title("🔐 Login")
 
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
@@ -22,6 +22,9 @@ def login_page():
             st.rerun()
         else:
             st.error("Invalid credentials ❌")
+            if not st.session_state.logged_in:
+                login_page()
+    st.stop()
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
      
