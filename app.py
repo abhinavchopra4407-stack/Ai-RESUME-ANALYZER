@@ -409,6 +409,7 @@ def login_page():
             st.session_state.logged_in = True
             st.success("Login successful ✅")
             st.rerun()
+            st.success("Welcome 👋 You are logged in") 
           # 🚨 THIS IS CRITICAL
 st.title("🤖 AI Resume Analyzer")
 
