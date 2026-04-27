@@ -11,7 +11,10 @@ from reportlab.lib.styles import getSampleStyleSheet
 # ---------------- LOGIN STATE ----------------
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
-     
+    # 🔐 LOGIN CHECK (VERY IMPORTANT)
+if not st.session_state.logged_in:
+    login_page()
+    st.stop() 
 if "pdf_ready" not in st.session_state:
     st.session_state.pdf_ready = False
 st.set_page_config(
@@ -385,16 +388,14 @@ def login_page():
             st.rerun()
         else:
             st.error("Invalid credentials ❌")
-            if not st.session_state.logged_in:
-             login_page()
-            st.stop()   # 🚨 THIS IS CRITICAL
+          # 🚨 THIS IS CRITICAL
 st.title("🤖 AI Resume Analyzer")
-col1, col2 = st.columns([6,1])
-
-with col2:
-    if st.button("🚪 Logout"):
-        st.session_state.logged_in = False
-        st.rerun()
+if st.session_state.logged_in:
+    col1, col2 = st.columns([6,1])
+    with col2:
+        if st.button("🚪 Logout"):
+            st.session_state.logged_in = False
+            st.rerun()
 # Create 3 columns (left empty, center content, right empty)
 col1, col2, col3 = st.columns([1,2,1])
 
