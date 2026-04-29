@@ -7,7 +7,27 @@ import base64
 import time
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
+import json
+from datetime import datetime
 
+def save_history(username, job_role, score):
+    try:
+        with open("history.json", "r") as f:
+            data = json.load(f)
+    except:
+        data = {}
+
+    if username not in data:
+        data[username] = []
+
+    data[username].append({
+        "job_role": job_role,
+        "score": score,
+        "date": datetime.now().strftime("%d-%m-%Y %H:%M")
+    })
+
+    with open("history.json", "w") as f:
+        json.dump(data, f, indent=4)
 # ---------------- LOGIN STATE -------------
 
 if "logged_in" not in st.session_state:
@@ -31,7 +51,20 @@ def login_page():
 if not st.session_state.logged_in:
     login_page()
     st.stop()
-         
+def show_history(username):
+    try:
+        with open("history.json", "r") as f:
+            data = json.load(f)
+    except:
+        data = {}
+
+    st.subheader("📜 Your Previous Reports")
+
+    if username in data:
+        for item in reversed(data[username]):
+            st.write(f"💼 {item['job_role']} | 🎯 {item['score']}% | 🕒 {item['date']}")
+    else:
+        st.info("No history yet")         
 if "pdf_ready" not in st.session_state:
     st.session_state.pdf_ready = False
 st.set_page_config(
@@ -492,6 +525,10 @@ if uploaded_file is not None:
 
                     user_skills = extract_skills(resume_text)
                     matched, missing, score = match_skills(user_skills, job_role)
+                    
+                    if "saved" not in st.session_state:
+                      save_history(st.session_state.username, job_role, score)
+                    st.session_state.saved = True
                     # ---------------- ROLE SUGGESTION ----------------
                     st.subheader("🎯 Recommended Roles")
 
