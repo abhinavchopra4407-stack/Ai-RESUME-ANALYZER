@@ -9,7 +9,10 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 import json
 from datetime import datetime
+import random
 
+def generate_otp():
+    return str(random.randint(100000, 999999))
 def save_history(username, job_role, score):
     try:
         with open("history.json", "r") as f:
@@ -28,25 +31,47 @@ def save_history(username, job_role, score):
 
     with open("history.json", "w") as f:
         json.dump(data, f, indent=4)
+        import yagmail
+import yagmail
+def send_otp(email, otp):
+    sender_email = "your_email@gmail.com"
+    sender_password = "your_app_password"
+
+    yag = yagmail.SMTP(sender_email, sender_password)
+
+    yag.send(
+        to=email,
+        subject="Your Login OTP",
+        contents=f"Your OTP is: {otp}"
+    )
 # ---------------- LOGIN STATE -------------
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 def login_page():
-    st.title("🔐 Login")
+    st.title("🔐 Login with OTP")
 
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
+    email = st.text_input("Enter your Email")
 
-    if st.button("Login"):
-        if username == "admin" and password == "1234":
+    if st.button("Send OTP"):
+        otp = generate_otp()
+        st.session_state.otp = otp
+        st.session_state.email = email
+
+        send_otp(email, otp)
+        st.success("OTP sent to your email")
+
+    user_otp = st.text_input("Enter OTP")
+
+    if st.button("Verify OTP"):
+        if user_otp == st.session_state.get("otp"):
             st.session_state.logged_in = True
-            st.session_state.username = username   # ✅ ADD THIS
+            st.session_state.username = email
             st.success("Login successful ✅")
             st.rerun()
         else:
-            st.error("Invalid credentials ❌")
+            st.error("Invalid OTP ❌")
 
 # 🚨 MUST BE HERE
 if not st.session_state.logged_in:
