@@ -119,7 +119,7 @@ def login_page():
                     st.session_state.email = email
                     
                     # Show OTP in UI for testing
-                    
+                    st.info(f"📧 Test OTP: **{otp}**")
                     
                     # Try to send email
                     if send_otp(email, otp):
