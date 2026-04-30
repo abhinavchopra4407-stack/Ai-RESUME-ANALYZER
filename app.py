@@ -37,42 +37,73 @@ def save_history(username, job_role, score):
         
 
 def send_otp(email, otp):
+    """Improved Gmail sending with anti-spam measures"""
     try:
-        # Email configuration
-        sender_email = st.secrets["EMAIL"]
-        sender_password = st.secrets["PASSWORD"]
+        yag = yagmail.SMTP(
+            user=st.secrets["EMAIL"],
+            password=st.secrets["PASSWORD"]
+        )
         
-        # Create message
-        msg = MIMEMultipart()
-        msg['From'] = sender_email
-        msg['To'] = email
-        msg['Subject'] = "Your Login OTP"
-        
-        # Email body
-        body = f"""
+        # Create professional HTML email
+        html_content = f"""
+        <!DOCTYPE html>
         <html>
-        <body>
-            <h2>🔐 Your OTP Code</h2>
-            <p>Your One-Time Password (OTP) is: <strong>{otp}</strong></p>
-            <p>This OTP is valid for this session only.</p>
-            <hr>
-            <p>If you didn't request this, please ignore this email.</p>
-            <p>Best regards,<br>AI Resume Analyzer Team</p>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+            <div style="max-width: 500px; margin: 0 auto; padding: 20px;">
+                <div style="background: linear-gradient(135deg, #6366f1 0%, #22c55e 100%); padding: 30px; border-radius: 12px; text-align: center;">
+                    <h1 style="color: white; margin: 0;">🤖 AI Resume Analyzer</h1>
+                </div>
+                
+                <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <h2 style="color: #333;">Hello,</h2>
+                    <p style="color: #666; font-size: 16px;">Your verification code is:</p>
+                    
+                    <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
+                        <span style="font-size: 48px; font-weight: bold; letter-spacing: 8px; color: #6366f1;">{otp}</span>
+                    </div>
+                    
+                    <p style="color: #666;">This code will expire in 10 minutes.</p>
+                    
+                    <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin-top: 20px;">
+                        <p style="color: #666; font-size: 12px; margin: 0;">
+                            If you didn't request this code, you can safely ignore this email.
+                        </p>
+                    </div>
+                </div>
+                
+                <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
+                    <p>AI Resume Analyzer - Smart Career Tool</p>
+                </div>
+            </div>
         </body>
         </html>
         """
         
-        msg.attach(MIMEText(body, 'html'))
+        # Send with proper headers to avoid spam
+        contents = [
+            html_content,
+            # Add plain text version as well
+            f"Your OTP code is: {otp}\n\nThis code is valid for this session only."
+        ]
         
-        # Send email
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(sender_email, sender_password)
-            server.send_message(msg)
-            
+        yag.send(
+            to=email,
+            subject="🔐 Your Verification Code",
+            contents=contents,
+            headers={
+                'Priority': 'normal',
+                'X-Mailer': 'AI Resume Analyzer',
+                'X-Priority': '3'
+            }
+        )
         return True
         
     except Exception as e:
-        st.error(f"Email error: {str(e)}")
+        st.error(f"Failed to send email: {str(e)}")
         return False
 # ---------------- LOGIN STATE -------------
 
