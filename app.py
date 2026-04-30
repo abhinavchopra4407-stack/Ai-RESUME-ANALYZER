@@ -54,7 +54,15 @@ def login_page():
 
     email = st.text_input("Enter your Email")
 
-    if st.button("Send OTP"):
+if st.button("Send OTP"):
+
+    if not email:
+        st.error("❌ Please enter email")
+
+    elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
+        st.error("❌ Invalid email format")
+
+    else:
         otp = generate_otp()
         st.session_state.otp = otp
         st.session_state.email = email
