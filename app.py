@@ -35,23 +35,16 @@ def save_history(username, job_role, score):
         json.dump(data, f, indent=4)
         
 
-def send_otp(email, otp):
+def send_otp(receiver_email, otp):
     try:
-        yag = yagmail.SMTP(
-            user=st.secrets["EMAIL"],
-            password=st.secrets["PASSWORD"]
-        )
-
         yag.send(
-            to=email,
+            to=receiver_email,
             subject="Your Login OTP",
             contents=f"Your OTP is: {otp}"
         )
-
         return True
-
     except Exception as e:
-        st.error(f"Email failed: {e}")
+        print("ERROR:", e)
         return False
 # ---------------- LOGIN STATE -------------
 
@@ -65,36 +58,37 @@ def login_page():
 
     email = st.text_input("Enter your Email")  # ✅ defined here
 
-    if st.button("Send OTP"):
+if st.button("Send OTP"):
 
-        if not email:
-            st.error("❌ Please enter email")
+    if not email:
+        st.error("❌ Please enter email")
 
-        elif email and not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
-            st.error("❌ Invalid email format")
+    elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
+        st.error("❌ Invalid email format")
 
+    else:
+        otp = generate_otp()
+
+        # ✅ SAVE OTP properly
+        st.session_state["otp"] = str(otp)
+        st.session_state["email"] = email
+
+        st.write("Sending OTP to:", email)
+
+        if send_otp(email, otp):
+            st.success("OTP sent successfully")
         else:
-            otp = generate_otp()
-            st.session_state.otp = otp
-            st.session_state.email = email
+            st.error("Failed to send OTP")
+user_otp = st.text_input("Enter OTP")
 
-            st.write("Sending OTP to:", email)
-
-            if send_otp(email, otp):
-                st.success("OTP sent successfully")
-            else:
-                st.error("Failed to send OTP")
-
-        user_otp = st.text_input("Enter OTP")
-
-        if st.button("Verify OTP"):
-            if user_otp == st.session_state.get("otp"):
-                st.session_state.logged_in = True
-            st.session_state.username = email
-            st.success("Login successful ✅")
-            st.rerun()
-        else:
-            st.error("Invalid OTP ❌")
+if st.button("Verify OTP"):
+    if user_otp == st.session_state.get("otp"):
+        st.session_state.logged_in = True
+        st.session_state.username = st.session_state.get("email")
+        st.success("Login successful ✅")
+        st.rerun()
+    else:
+        st.error("Invalid OTP ❌")
 
 # 🚨 MUST BE HERE
 if not st.session_state.logged_in:
