@@ -10,7 +10,10 @@ from reportlab.lib.styles import getSampleStyleSheet
 import json
 from datetime import datetime
 import random
-import yagmail  
+import yagmail
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart  
 def generate_otp():
     return str(random.randint(100000, 999999))
 def save_history(username, job_role, score):
@@ -34,15 +37,43 @@ def save_history(username, job_role, score):
         
 
 def send_otp(email, otp):
-    yag = yagmail.SMTP(
-        user="chopraabhinav53@gmail.com",  # ✅ your email
-        password="wynr atcq iruh alhk") # ✅ your app password
-
-    yag.send(
-        to=email,  # ✅ dynamic
-        subject="Your Login OTP",
-        contents=f"Your OTP is: {otp}"
-    )
+    try:
+        # Email configuration
+        sender_email = st.secrets["EMAIL"]
+        sender_password = st.secrets["PASSWORD"]
+        
+        # Create message
+        msg = MIMEMultipart()
+        msg['From'] = sender_email
+        msg['To'] = email
+        msg['Subject'] = "Your Login OTP"
+        
+        # Email body
+        body = f"""
+        <html>
+        <body>
+            <h2>🔐 Your OTP Code</h2>
+            <p>Your One-Time Password (OTP) is: <strong>{otp}</strong></p>
+            <p>This OTP is valid for this session only.</p>
+            <hr>
+            <p>If you didn't request this, please ignore this email.</p>
+            <p>Best regards,<br>AI Resume Analyzer Team</p>
+        </body>
+        </html>
+        """
+        
+        msg.attach(MIMEText(body, 'html'))
+        
+        # Send email
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(sender_email, sender_password)
+            server.send_message(msg)
+            
+        return True
+        
+    except Exception as e:
+        st.error(f"Email error: {str(e)}")
+        return False
 # ---------------- LOGIN STATE -------------
 
 if "logged_in" not in st.session_state:
@@ -53,31 +84,37 @@ import re
 def login_page():
     st.title("🔐 Login with OTP")
 
-    email = st.text_input("Enter your Email")  # ✅ defined here
+    email = st.text_input("Enter your Email")
 
     if st.button("Send OTP"):
-
         if not email:
             st.error("❌ Please enter email")
-
         elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
             st.error("❌ Invalid email format")
-
         else:
             otp = generate_otp()
             st.session_state.otp = otp
             st.session_state.email = email
+            
+            # Show OTP in UI for testing (remove in production)
+            st.info(f"📧 For testing, OTP is: {otp}")
+            
+            # Send actual email
+            success = send_otp(email, otp)
+            
+            if success:
+                st.success("✅ OTP sent to your email")
+            else:
+                st.warning("⚠️ Could not send email. Using on-screen OTP for demo.")
 
-            send_otp(email, otp)
-            st.success("OTP sent to your email")
-
-    user_otp = st.text_input("Enter OTP")
+    user_otp = st.text_input("Enter OTP", type="password")
 
     if st.button("Verify OTP"):
         if user_otp == st.session_state.get("otp"):
             st.session_state.logged_in = True
             st.session_state.username = email
             st.success("Login successful ✅")
+            time.sleep(1)
             st.rerun()
         else:
             st.error("Invalid OTP ❌")
