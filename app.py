@@ -42,6 +42,7 @@ def login_page():
     if st.button("Login"):
         if username == "admin" and password == "1234":
             st.session_state.logged_in = True
+            st.session_state.username = username   # ✅ ADD THIS
             st.success("Login successful ✅")
             st.rerun()
         else:
@@ -445,6 +446,7 @@ def login_page():
             st.success("Welcome 👋 You are logged in") 
           # 🚨 THIS IS CRITICAL
 st.title("🤖 AI Resume Analyzer")
+show_history(st.session_state.username)
 
 # Create 3 columns (left empty, center content, right empty)
 col1, col2, col3 = st.columns([1,2,1])
@@ -526,9 +528,9 @@ if uploaded_file is not None:
                     user_skills = extract_skills(resume_text)
                     matched, missing, score = match_skills(user_skills, job_role)
                     
-                    if "saved" not in st.session_state:
-                      save_history(st.session_state.username, job_role, score)
-                    st.session_state.saved = True
+                if "saved" not in st.session_state or not st.session_state.saved:
+                    save_history(st.session_state.username, job_role, score)
+                    st.session_state.saved = True # 🚨 ENSURE THIS IS SET
                     # ---------------- ROLE SUGGESTION ----------------
                     st.subheader("🎯 Recommended Roles")
 
