@@ -11,6 +11,12 @@ import json
 from datetime import datetime
 import random
 import yagmail  
+import re
+import email
+def is_valid_email(email):
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
+
 def generate_otp():
     return str(random.randint(100000, 999999))
 def save_history(username, job_role, score):
@@ -54,14 +60,18 @@ def login_page():
 
     email = st.text_input("Enter your Email")
 
-    if st.button("Send OTP"):
+if st.button("Send OTP"):
+
+    if not is_valid_email(email):   # ✅ ADD HERE
+        st.error("❌ Invalid email format")
+
+    else:
         otp = generate_otp()
         st.session_state.otp = otp
         st.session_state.email = email
 
         send_otp(email, otp)
         st.success("OTP sent to your email")
-
     user_otp = st.text_input("Enter OTP")
 
     if st.button("Verify OTP"):
