@@ -1,3 +1,5 @@
+import email
+
 import streamlit as st
 import PyPDF2
 import re
@@ -65,32 +67,32 @@ def login_page():
 
 if st.button("Send OTP"):
 
-    if not email:
-        st.error("❌ Please enter email")
+        if not email:
+            st.error("❌ Please enter email")
 
-    elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
-        st.error("❌ Invalid email format")
+        elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
+            st.error("❌ Invalid email format")
 
-    else:
-        otp = generate_otp()
-        st.session_state.otp = otp
-        st.session_state.email = email
-
-        # ✅ DEBUG LINE (ADD HERE)
-        st.write("Sending OTP to:", email)
-
-        # send email
-        if send_otp(email, otp):
-            st.success("OTP sent to your email")
         else:
-            st.error("Failed to send OTP")
+            otp = generate_otp()
+            st.session_state.otp = otp   
+            st.session_state.email = email
+
+            # ✅ DEBUG LINE (ADD HERE)
+            st.write("Sending OTP to:", email)
+
+            # send email
+            if send_otp(email, otp):
+                st.success("OTP sent to your email")
+            else:
+                st.error("Failed to send OTP")
 
 
-    user_otp = st.text_input("Enter OTP")
+        user_otp = st.text_input("Enter OTP")
 
-    if st.button("Verify OTP"):
-        if user_otp == st.session_state.get("otp"):
-            st.session_state.logged_in = True
+        if st.button("Verify OTP"):
+            if user_otp == st.session_state.get("otp"):
+                st.session_state.logged_in = True
             st.session_state.username = email
             st.success("Login successful ✅")
             st.rerun()
