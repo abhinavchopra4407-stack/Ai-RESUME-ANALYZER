@@ -458,14 +458,28 @@ if "analyze" not in st.session_state:
 # ---------------- LOGIN SYSTEM ----------------
 
 def login_page():
-    st.markdown("## 🔐 Login")
+    st.title("🔐 Login with OTP")
 
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
+    email = st.text_input("Enter your Email")
 
-    if st.button("Login"):
-        if username == "admin" and password == "1234":
+    if st.button("Send OTP"):
+        otp = generate_otp()
+        st.session_state.otp = otp
+        st.session_state.email = email
+
+        send_otp(email, otp)
+        st.success("OTP sent to your email")
+
+    user_otp = st.text_input("Enter OTP")
+
+    if st.button("Verify OTP"):
+        if user_otp == st.session_state.get("otp"):
             st.session_state.logged_in = True
+            st.session_state.username = email
+            st.success("Login successful ✅")
+            st.rerun()
+        else:
+            st.error("Invalid OTP ❌")
             st.success("Login successful ✅")
             st.rerun()
             st.success("Welcome 👋 You are logged in") 
