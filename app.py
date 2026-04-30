@@ -180,6 +180,14 @@ def login_page():
             </p>
         </div>
         """, unsafe_allow_html=True)
+        # Add some style
+        st.markdown("""
+        <div style='text-align: center; margin-top: 30px;'>
+            <p style='color: #666; font-size: 12px;'>
+                🔒 Secure login • OTP valid for 10 minutes
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 
 if not st.session_state.logged_in:
     login_page()
