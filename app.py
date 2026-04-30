@@ -84,31 +84,37 @@ import re
 def login_page():
     st.title("🔐 Login with OTP")
 
-    email = st.text_input("Enter your Email")  # ✅ defined here
+    email = st.text_input("Enter your Email")
 
     if st.button("Send OTP"):
-
         if not email:
             st.error("❌ Please enter email")
-
         elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
             st.error("❌ Invalid email format")
-
         else:
             otp = generate_otp()
             st.session_state.otp = otp
             st.session_state.email = email
+            
+            # Show OTP in UI for testing (remove in production)
+            st.info(f"📧 For testing, OTP is: {otp}")
+            
+            # Send actual email
+            success = send_otp(email, otp)
+            
+            if success:
+                st.success("✅ OTP sent to your email")
+            else:
+                st.warning("⚠️ Could not send email. Using on-screen OTP for demo.")
 
-            send_otp(email, otp)
-            st.success("OTP sent to your email")
-
-    user_otp = st.text_input("Enter OTP")
+    user_otp = st.text_input("Enter OTP", type="password")
 
     if st.button("Verify OTP"):
         if user_otp == st.session_state.get("otp"):
             st.session_state.logged_in = True
             st.session_state.username = email
             st.success("Login successful ✅")
+            time.sleep(1)
             st.rerun()
         else:
             st.error("Invalid OTP ❌")
