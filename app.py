@@ -109,7 +109,22 @@ def send_otp(email, otp):
         yag.send(
             to=email,
             subject="Your Login OTP - AI Resume Analyzer",
-            contents=f"Your OTP is: {otp}\n\nThis OTP is valid for this session only."
+            contents= f"""
+🔐 Verify Your Login
+
+Hi,
+
+Your One-Time Password (OTP) is:
+
+👉 {otp}
+
+⏳ This code is valid for 2 minutes
+🔒 Do not share this code with anyone
+
+If you didn’t request this, you can ignore this email.
+
+— AI Resume Analyzer
+"""
         )
         return True
     except Exception as e:
