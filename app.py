@@ -34,8 +34,8 @@ def save_history(username, job_role, score):
         
 
 def send_otp(email, otp):
-    sender_email = "your_email@gmail.com"
-    sender_password = "your_app_password"
+    sender_email = "chopraabhinav53@gmail.com"
+    sender_password = "ddbl rldv lapz llpd"
 
     yag = yagmail.SMTP(sender_email, sender_password)
 
