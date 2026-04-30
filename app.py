@@ -11,6 +11,7 @@ import json
 from datetime import datetime
 import random
 import yagmail
+import os
 
 # ============= STEP 1: IMMEDIATE SESSION STATE INITIALIZATION =============
 if "logged_in" not in st.session_state:
@@ -51,6 +52,7 @@ def generate_otp():
     return str(random.randint(100000, 999999))
 
 def save_history(username, job_role, score):
+    """Save history to JSON file - persists across logouts"""
     try:
         with open("history.json", "r") as f:
             data = json.load(f)
@@ -68,6 +70,28 @@ def save_history(username, job_role, score):
 
     with open("history.json", "w") as f:
         json.dump(data, f, indent=4)
+
+def delete_history(username, index=None):
+    """Delete specific history entry or all history for a user"""
+    try:
+        with open("history.json", "r") as f:
+            data = json.load(f)
+    except:
+        return False
+    
+    if username in data:
+        if index is None:
+            # Delete all history for this user
+            data[username] = []
+        else:
+            # Delete specific entry
+            if 0 <= index < len(data[username]):
+                data[username].pop(index)
+        
+        with open("history.json", "w") as f:
+            json.dump(data, f, indent=4)
+        return True
+    return False
 
 def send_otp(email, otp):
     try:
@@ -137,17 +161,38 @@ def login_page():
                 st.error("❌ Invalid OTP. Please try again.")
 
 def show_history(username):
+    """Display user history with delete option"""
     try:
         with open("history.json", "r") as f:
             data = json.load(f)
     except:
         data = {}
 
-    if username in data:
-        for item in reversed(data[username]):
-            st.write(f"💼 {item['job_role']} | 🎯 {item['score']}% | 🕒 {item['date']}")
+    st.subheader("📜 Your Previous Reports")
+    
+    if username in data and data[username]:
+        for idx, item in enumerate(reversed(data[username])):
+            col1, col2, col3 = st.columns([4, 1, 1])
+            with col1:
+                st.write(f"💼 {item['job_role']} | 🎯 {item['score']}% | 🕒 {item['date']}")
+            with col2:
+                if st.button(f"🗑️", key=f"del_{idx}"):
+                    # Calculate original index
+                    original_idx = len(data[username]) - 1 - idx
+                    if delete_history(username, original_idx):
+                        st.success("✅ Entry deleted!")
+                        st.rerun()
+            with col3:
+                if st.button(f"📄", key=f"view_{idx}"):
+                    st.info(f"Report for {item['job_role']} - Score: {item['score']}%")
+        
+        # Option to delete all history
+        if st.button("🗑️ Delete All History", use_container_width=True):
+            if delete_history(username):
+                st.success("✅ All history deleted!")
+                st.rerun()
     else:
-        st.info("No history yet")
+        st.info("No history yet. Upload a resume to get started!")
 
 def set_bg(image_file):
     try:
@@ -162,11 +207,6 @@ def set_bg(image_file):
             background-position: center;
             background-repeat: no-repeat;
             background-attachment: fixed;
-        }}
-        .block-container {{
-            background: rgba(0, 0, 0, 0.7);
-            padding: 20px;
-            border-radius: 15px;
         }}
         </style>
         """, unsafe_allow_html=True)
@@ -284,7 +324,7 @@ if not st.session_state.logged_in:
     login_page()
     st.stop()
 
-# ============= STEP 5: MAIN APP (Original Logic) =============
+# ============= STEP 5: MAIN APP (Original UI) =============
 
 # Apply styling
 st.markdown("""
@@ -324,15 +364,13 @@ with col1:
     st.caption("AI-powered resume insights to match your dream job 🚀")
 with col2:
     if st.button("🚪 Logout"):
-        for key in list(st.session_state.keys()):
-            del st.session_state[key]
+        st.session_state.logged_in = False
         st.rerun()
 
 # Show history
-if st.session_state.logged_in:
-    show_history(st.session_state.username)
+show_history(st.session_state.username)
 
-# Main content
+# Create 3 columns for centered content
 col1, col2, col3 = st.columns([1, 2, 1])
 
 with col2:
