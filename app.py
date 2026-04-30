@@ -37,158 +37,89 @@ def save_history(username, job_role, score):
         
 
 def send_otp(email, otp):
-    """Improved Gmail sending with anti-spam measures"""
     try:
-        yag = yagmail.SMTP(
-            user=st.secrets["EMAIL"],
-            password=st.secrets["PASSWORD"]
-        )
+        # Email configuration
+        sender_email = st.secrets["EMAIL"]
+        sender_password = st.secrets["PASSWORD"]
         
-        # Create professional HTML email
-        html_content = f"""
-        <!DOCTYPE html>
+        # Create message
+        msg = MIMEMultipart()
+        msg['From'] = sender_email
+        msg['To'] = email
+        msg['Subject'] = "Your Login OTP"
+        
+        # Email body
+        body = f"""
         <html>
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-            <div style="max-width: 500px; margin: 0 auto; padding: 20px;">
-                <div style="background: linear-gradient(135deg, #6366f1 0%, #22c55e 100%); padding: 30px; border-radius: 12px; text-align: center;">
-                    <h1 style="color: white; margin: 0;">🤖 AI Resume Analyzer</h1>
-                </div>
-                
-                <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                    <h2 style="color: #333;">Hello,</h2>
-                    <p style="color: #666; font-size: 16px;">Your verification code is:</p>
-                    
-                    <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
-                        <span style="font-size: 48px; font-weight: bold; letter-spacing: 8px; color: #6366f1;">{otp}</span>
-                    </div>
-                    
-                    <p style="color: #666;">This code will expire in 10 minutes.</p>
-                    
-                    <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin-top: 20px;">
-                        <p style="color: #666; font-size: 12px; margin: 0;">
-                            If you didn't request this code, you can safely ignore this email.
-                        </p>
-                    </div>
-                </div>
-                
-                <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
-                    <p>AI Resume Analyzer - Smart Career Tool</p>
-                </div>
-            </div>
+        <body>
+            <h2>🔐 Your OTP Code</h2>
+            <p>Your One-Time Password (OTP) is: <strong>{otp}</strong></p>
+            <p>This OTP is valid for this session only.</p>
+            <hr>
+            <p>If you didn't request this, please ignore this email.</p>
+            <p>Best regards,<br>AI Resume Analyzer Team</p>
         </body>
         </html>
         """
         
-        # Send with proper headers to avoid spam
-        contents = [
-            html_content,
-            # Add plain text version as well
-            f"Your OTP code is: {otp}\n\nThis code is valid for this session only."
-        ]
+        msg.attach(MIMEText(body, 'html'))
         
-        yag.send(
-            to=email,
-            subject="🔐 Your Verification Code",
-            contents=contents,
-            headers={
-                'Priority': 'normal',
-                'X-Mailer': 'AI Resume Analyzer',
-                'X-Priority': '3'
-            }
-        )
+        # Send email
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(sender_email, sender_password)
+            server.send_message(msg)
+            
         return True
         
     except Exception as e:
-        st.error(f"Failed to send email: {str(e)}")
+        st.error(f"Email error: {str(e)}")
         return False
 # ---------------- LOGIN STATE -------------
 
-if "otp_verified" not in st.session_state:
-    st.session_state.otp_verified = False
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+import re
 
 def login_page():
-    # Add big title at the top
-    st.markdown("""
-    <div style='text-align: center; padding: 20px;'>
-        <h1 style='
-            font-size: 48px; 
-            background: linear-gradient(135deg, #6366f1 0%, #22c55e 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 10px;
-        '>🤖 AI RESUME ANALYZER</h1>
-        <p style='color: #888; font-size: 18px;'>AI-powered resume insights to match your dream job 🚀</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    # Login form
-    col1, col2, col3 = st.columns([1, 2, 1])
-    
-    with col2:
-        st.markdown("### 🔐 Login to Continue")
-        
-        email = st.text_input("📧 Email Address", placeholder="you@example.com", key="login_email")
-        
-        col_a, col_b = st.columns(2)
-        
-        with col_a:
-            if st.button("📨 Send OTP", use_container_width=True):
-                if not email:
-                    st.error("❌ Please enter email address")
-                elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
-                    st.error("❌ Please enter a valid email address")
-                else:
-                    otp = generate_otp()
-                    st.session_state.otp = otp
-                    st.session_state.email = email
-                    
-                    # Show OTP in UI for testing
-                    st.info(f"📧 Test OTP: **{otp}**")
-                    
-                    # Try to send email
-                    if send_otp(email, otp):
-                        st.success("✅ OTP sent to your email!")
-                    else:
-                        st.warning("⚠️ Using on-screen OTP for demo")
-        
-        user_otp = st.text_input("🔑 Enter OTP", type="password", placeholder="Enter 6-digit code", key="login_otp")
-        
-        with col_b:
-            if st.button("✅ Verify & Login", use_container_width=True):
-                if not user_otp:
-                    st.error("❌ Please enter OTP")
-                elif user_otp == st.session_state.get("otp"):
-                    st.session_state.logged_in = True
-                    st.session_state.username = st.session_state.email
-                    st.success("✅ Login successful! Redirecting...")
-                    time.sleep(1)
-                    st.rerun()
-                else:
-                    st.error("❌ Invalid OTP. Please try again.")
-        
-        # Add some style
-        st.markdown("""
-        <div style='text-align: center; margin-top: 30px;'>
-            <p style='color: #666; font-size: 12px;'>
-                🔒 Secure login • OTP valid for 10 minutes
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-        # Add some style
-        st.markdown("""
-        <div style='text-align: center; margin-top: 30px;'>
-            <p style='color: #666; font-size: 12px;'>
-                🔒 Secure login • OTP valid for 10 minutes
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+    st.title("🔐 Login with OTP")
 
+    email = st.text_input("Enter your Email")
+
+    if st.button("Send OTP"):
+        if not email:
+            st.error("❌ Please enter email")
+        elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
+            st.error("❌ Invalid email format")
+        else:
+            otp = generate_otp()
+            st.session_state.otp = otp
+            st.session_state.email = email
+            
+            # Show OTP in UI for testing (remove in production)
+            st.info(f"📧 For testing, OTP is: {otp}")
+            
+            # Send actual email
+            success = send_otp(email, otp)
+            
+            if success:
+                st.success("✅ OTP sent to your email")
+            else:
+                st.warning("⚠️ Could not send email. Using on-screen OTP for demo.")
+
+    user_otp = st.text_input("Enter OTP", type="password")
+
+    if st.button("Verify OTP"):
+        if user_otp == st.session_state.get("otp"):
+            st.session_state.logged_in = True
+            st.session_state.username = email
+            st.success("Login successful ✅")
+            time.sleep(1)
+            st.rerun()
+        else:
+            st.error("Invalid OTP ❌")
+
+# 🚨 MUST BE HERE
 if not st.session_state.logged_in:
     login_page()
     st.stop()
