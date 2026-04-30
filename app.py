@@ -35,9 +35,8 @@ def save_history(username, job_role, score):
 
 def send_otp(email, otp):
     yag = yagmail.SMTP(
-        user=st.secrets["EMAIL"],
-        password=st.secrets["PASSWORD"]
-    )
+        user="chopraabhinav53@gmail.com",  # ✅ your email
+        password="wynr atcq iruh alhk") # ✅ your app password
 
     yag.send(
         to=email,  # ✅ dynamic
@@ -780,4 +779,4 @@ if uploaded_file is not None:
                 # Projects
                     st.subheader("💡 Suggested Projects")
                     for p in PROJECTS.get(job_role.lower(), []):
-                            st.write("🚀", p)
+                        st.write("🚀", p)
