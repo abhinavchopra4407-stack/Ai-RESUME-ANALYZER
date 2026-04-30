@@ -34,16 +34,23 @@ def save_history(username, job_role, score):
         
 
 def send_otp(email, otp):
-    yag = yagmail.SMTP(
-        user=st.secrets["EMAIL"],
-        password=st.secrets["PASSWORD"]
-    )
+    try:
+        yag = yagmail.SMTP(
+            user=st.secrets["EMAIL"],
+            password=st.secrets["PASSWORD"]
+        )
 
-    yag.send(
-        to=email,  # ✅ dynamic
-        subject="Your Login OTP",
-        contents=f"Your OTP is: {otp}"
-    )
+        yag.send(
+            to=email,
+            subject="Your Login OTP",
+            contents=f"Your OTP is: {otp}"
+        )
+
+        return True
+
+    except Exception as e:
+        st.error(f"Email failed: {e}")
+        return False
 # ---------------- LOGIN STATE -------------
 
 if "logged_in" not in st.session_state:
@@ -56,21 +63,28 @@ def login_page():
 
     email = st.text_input("Enter your Email")  # ✅ defined here
 
-    if st.button("Send OTP"):
+if st.button("Send OTP"):
 
-        if not email:
-            st.error("❌ Please enter email")
+    if not email:
+        st.error("❌ Please enter email")
 
-        elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
-            st.error("❌ Invalid email format")
+    elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
+        st.error("❌ Invalid email format")
 
-        else:
-            otp = generate_otp()
-            st.session_state.otp = otp
-            st.session_state.email = email
+    else:
+        otp = generate_otp()
+        st.session_state.otp = otp
+        st.session_state.email = email
 
-            send_otp(email, otp)
+        # ✅ DEBUG LINE (ADD HERE)
+        st.write("Sending OTP to:", email)
+
+        # send email
+        if send_otp(email, otp):
             st.success("OTP sent to your email")
+        else:
+            st.error("Failed to send OTP")
+
 
     user_otp = st.text_input("Enter OTP")
 
