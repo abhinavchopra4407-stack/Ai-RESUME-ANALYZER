@@ -10,7 +10,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 import json
 from datetime import datetime
 import random
-
+import yagmail  
 def generate_otp():
     return str(random.randint(100000, 999999))
 def save_history(username, job_role, score):
@@ -31,8 +31,8 @@ def save_history(username, job_role, score):
 
     with open("history.json", "w") as f:
         json.dump(data, f, indent=4)
-        import yagmail
-import yagmail
+        
+
 def send_otp(email, otp):
     sender_email = "your_email@gmail.com"
     sender_password = "your_app_password"
@@ -457,35 +457,11 @@ if "analyze" not in st.session_state:
 # ---------------- UI ----------------
 # ---------------- LOGIN SYSTEM ----------------
 
-def login_page():
-    st.title("🔐 Login with OTP")
 
-    email = st.text_input("Enter your Email")
-
-    if st.button("Send OTP"):
-        otp = generate_otp()
-        st.session_state.otp = otp
-        st.session_state.email = email
-
-        send_otp(email, otp)
-        st.success("OTP sent to your email")
-
-    user_otp = st.text_input("Enter OTP")
-
-    if st.button("Verify OTP"):
-        if user_otp == st.session_state.get("otp"):
-            st.session_state.logged_in = True
-            st.session_state.username = email
-            st.success("Login successful ✅")
-            st.rerun()
-        else:
-            st.error("Invalid OTP ❌")
-            st.success("Login successful ✅")
-            st.rerun()
-            st.success("Welcome 👋 You are logged in") 
           # 🚨 THIS IS CRITICAL
 st.title("🤖 AI Resume Analyzer")
-show_history(st.session_state.username)
+if st.session_state.logged_in:
+    show_history(st.session_state.username)
 
 # Create 3 columns (left empty, center content, right empty)
 col1, col2, col3 = st.columns([1,2,1])
