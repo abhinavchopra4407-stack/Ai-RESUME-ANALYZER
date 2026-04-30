@@ -70,7 +70,7 @@ if st.button("Send OTP"):
         if not email:
             st.error("❌ Please enter email")
 
-        elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
+        elif email and not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
             st.error("❌ Invalid email format")
 
         else:
