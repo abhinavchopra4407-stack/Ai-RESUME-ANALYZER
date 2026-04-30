@@ -699,7 +699,7 @@ if uploaded_file is not None:
                 # ✅ ALL BELOW MUST BE INSIDE if block
 
                 st.subheader("📊 Skill Match")
-                st.write("🎯 Score:", final_score, "%")
+                st.write("Score:", st.session_state.get("final_score", 0))
 
                 st.subheader("✅ You Have")
                 st.markdown("\n".join([f"• {m}" for m in matched]))
@@ -747,28 +747,26 @@ if uploaded_file is not None:
 
         SCORE: {score}%
         """
-                
-            if st.button("Generate PDF Report"):
+            if st.button("📄 Generate PDF Report"):
 
-                report_data = {
-                    "job_role": job_role,
-                    "score": score,
-                    "matched": matched,
-                    "missing": missing
-                }
+                if "final_score" not in st.session_state:
+                    st.warning("⚠️ Please analyze resume first")
+                else:
+                    report_data = {
+                        "job_role": st.session_state.job_role,
+                        "score": st.session_state.final_score,
+                        "matched": st.session_state.matched,
+                        "missing": st.session_state.missing
+                    }
 
-                create_pdf(report_data)   # ✅ NOW INSIDE
+                    create_pdf(report_data)
 
-                st.success("PDF Generated Successfully ✅")
-
-                # Download button
-                with open("resume_report.pdf", "rb") as f:
-                    st.download_button(
-                        label="📥 Download Report",
-                        data=f,
-                        file_name="resume_report.pdf",
-                        mime="application/pdf"
-                    )
+                    with open("resume_report.pdf", "rb") as f:
+                        st.download_button(
+                            "⬇ Download Report",
+                            f,
+                            file_name="resume_report.pdf"
+                        )
                 # Projects
                     st.subheader("💡 Suggested Projects")
                     for p in PROJECTS.get(job_role.lower(), []):
