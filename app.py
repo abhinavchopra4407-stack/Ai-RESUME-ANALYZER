@@ -144,7 +144,7 @@ def login_page():
                 otp = generate_otp()
                 st.session_state.otp = otp
                 st.session_state.email = email
-                st.info(f"📧 Test OTP: **{otp}**")
+
                 
                 if send_otp(email, otp):
                     st.success("✅ OTP sent to your email!")
