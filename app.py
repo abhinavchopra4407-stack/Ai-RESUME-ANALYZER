@@ -38,6 +38,10 @@ if "missing" not in st.session_state:
     st.session_state.missing = []
 if "resume_text" not in st.session_state:
     st.session_state.resume_text = None
+if "uploaded_file_name" not in st.session_state:
+    st.session_state.uploaded_file_name = None
+if "upload_animation" not in st.session_state:
+    st.session_state.upload_animation = False
 
 # ============= STEP 2: PAGE CONFIGURATION =============
 st.set_page_config(
@@ -81,10 +85,8 @@ def delete_history(username, index=None):
     
     if username in data:
         if index is None:
-            # Delete all history for this user
             data[username] = []
         else:
-            # Delete specific entry
             if 0 <= index < len(data[username]):
                 data[username].pop(index)
         
@@ -177,7 +179,6 @@ def show_history(username):
                 st.write(f"💼 {item['job_role']} | 🎯 {item['score']}% | 🕒 {item['date']}")
             with col2:
                 if st.button(f"🗑️", key=f"del_{idx}"):
-                    # Calculate original index
                     original_idx = len(data[username]) - 1 - idx
                     if delete_history(username, original_idx):
                         st.success("✅ Entry deleted!")
@@ -186,7 +187,6 @@ def show_history(username):
                 if st.button(f"📄", key=f"view_{idx}"):
                     st.info(f"Report for {item['job_role']} - Score: {item['score']}%")
         
-        # Option to delete all history
         if st.button("🗑️ Delete All History", use_container_width=True):
             if delete_history(username):
                 st.success("✅ All history deleted!")
@@ -319,6 +319,31 @@ def create_pdf(report_data):
 
     doc.build(elements)
 
+def animated_upload():
+    """Create animation effect for upload"""
+    animation_html = """
+    <div style="text-align: center; padding: 20px;">
+        <div class="loader"></div>
+        <style>
+            .loader {
+                border: 4px solid #f3f3f3;
+                border-top: 4px solid #6366f1;
+                border-radius: 50%;
+                width: 40px;
+                height: 40px;
+                animation: spin 1s linear infinite;
+                margin: 0 auto;
+            }
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        </style>
+        <p style="color: white; margin-top: 10px;">Processing your resume...</p>
+    </div>
+    """
+    return animation_html
+
 # ============= STEP 4: CHECK LOGIN STATUS =============
 if not st.session_state.logged_in:
     login_page()
@@ -348,6 +373,24 @@ button {
 }
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-thumb { background: #38bdf8; }
+/* Dark text for feedback */
+.feedback-text {
+    color: #1a1a2e !important;
+    font-weight: 500;
+    line-height: 1.6;
+}
+.feedback-text p, .feedback-text div {
+    color: #1a1a2e !important;
+}
+/* Readable filename */
+.uploaded-filename {
+    background: #0f172a;
+    padding: 10px;
+    border-radius: 8px;
+    margin: 10px 0;
+    text-align: center;
+    border: 1px solid #22c55e;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -357,18 +400,11 @@ try:
 except:
     pass
 
-# Header with logout
-col1, col2 = st.columns([6, 1])
-with col1:
-    st.markdown("<h1 style='text-align:center;'>🤖 AI Resume Analyzer</h1>", unsafe_allow_html=True)
-    st.caption("AI-powered resume insights to match your dream job 🚀")
-with col2:
-    if st.button("🚪 Logout"):
-        st.session_state.logged_in = False
-        st.rerun()
+# Header with title only (logout button moved to bottom)
+st.markdown("<h1 style='text-align:center;'>🤖 AI Resume Analyzer</h1>", unsafe_allow_html=True)
+st.caption("AI-powered resume insights to match your dream job 🚀")
 
-# Create layout without history at the top
-# Just the upload section first
+# Create layout without logout at top
 col1, col2, col3 = st.columns([1, 2, 1])
 
 with col2:
@@ -391,13 +427,21 @@ with col2:
     )
 
 if uploaded_file is not None:
-    try:
-        with st.spinner("📄 Reading your resume..."):
-            resume_text = extract_text(uploaded_file)
-            st.session_state.resume_text = resume_text
-        st.success("File uploaded successfully ✅")
-    except Exception as e:
-        st.error("❌ Error reading PDF. Please upload a valid file.")
+    # Show readable filename
+    st.session_state.uploaded_file_name = uploaded_file.name
+    st.markdown(f"""
+    <div class='uploaded-filename'>
+        📄 <strong>Uploaded File:</strong> {uploaded_file.name}
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Animated processing
+    with st.spinner("📄 Processing your resume..."):
+        time.sleep(1)  # Small delay for animation effect
+        resume_text = extract_text(uploaded_file)
+        st.session_state.resume_text = resume_text
+    
+    st.success("✅ File uploaded successfully!")
     
     try:
         set_bg("Analyst.jpg")
@@ -409,7 +453,7 @@ if uploaded_file is not None:
         st.subheader("📄 Resume Preview")
         st.text(resume_text[:1000])
         
-        if st.button("🚀 Analyze Resume"):
+        if st.button("🚀 Analyze Resume", use_container_width=True):
             st.session_state.analyze = True
             st.rerun()
     
@@ -484,47 +528,52 @@ if uploaded_file is not None:
                     else:
                         st.info("Good skill coverage. Now focus on projects and real-world experience.")
                     
-                    # Feedback
+                    # Feedback with dark text
                     st.subheader("📌 Feedback")
                     if score < 40:
                         feedback = f"""
-                        Your resume has limited matching skills for the role of {job_role}.
-                        
-                        You need to focus on building strong fundamentals and adding relevant projects.
-                        
-                        👉 Start with:
-                        • Learning core concepts
-                        • Building 2–3 beginner projects
-                        • Adding missing skills like {", ".join(missing[:3])}
+                        <div class='feedback-text' style='background-color:#ffe6e6; padding:15px; border-radius:12px; border-left:5px solid #ef4444;'>
+                            <p style='color:#1a1a2e !important; margin:0;'><strong>Your resume has limited matching skills for the role of {job_role}.</strong></p>
+                            <p style='color:#1a1a2e !important;'>You need to focus on building strong fundamentals and adding relevant projects.</p>
+                            <br>
+                            <p style='color:#1a1a2e !important;'><strong>👉 Start with:</strong></p>
+                            <ul style='color:#1a1a2e !important;'>
+                                <li>Learning core concepts</li>
+                                <li>Building 2–3 beginner projects</li>
+                                <li>Adding missing skills like {", ".join(missing[:3])}</li>
+                            </ul>
+                        </div>
                         """
                     elif score < 70:
                         feedback = f"""
-                        Your profile is good but needs improvement for the role of {job_role}.
-                        
-                        You already have some relevant skills like {", ".join(matched[:3])}.
-                        
-                        👉 To improve:
-                        • Learn advanced tools like {", ".join(missing[:3])}
-                        • Add real-world projects
-                        • Strengthen your resume with achievements
+                        <div class='feedback-text' style='background-color:#fff3e6; padding:15px; border-radius:12px; border-left:5px solid #f59e0b;'>
+                            <p style='color:#1a1a2e !important; margin:0;'><strong>Your profile is good but needs improvement for the role of {job_role}.</strong></p>
+                            <p style='color:#1a1a2e !important;'>You already have some relevant skills like {", ".join(matched[:3])}.</p>
+                            <br>
+                            <p style='color:#1a1a2e !important;'><strong>👉 To improve:</strong></p>
+                            <ul style='color:#1a1a2e !important;'>
+                                <li>Learn advanced tools like {", ".join(missing[:3])}</li>
+                                <li>Add real-world projects</li>
+                                <li>Strengthen your resume with achievements</li>
+                            </ul>
+                        </div>
                         """
                     else:
                         feedback = f"""
-                        Excellent! Your resume is well aligned with the role of {job_role}.
-                        
-                        You have strong skills like {", ".join(matched[:3])}.
-                        
-                        👉 To go further:
-                        • Work on advanced projects
-                        • Build a portfolio
-                        • Prepare for interviews
+                        <div class='feedback-text' style='background-color:#e6ffe6; padding:15px; border-radius:12px; border-left:5px solid #22c55e;'>
+                            <p style='color:#1a1a2e !important; margin:0;'><strong>Excellent! Your resume is well aligned with the role of {job_role}.</strong></p>
+                            <p style='color:#1a1a2e !important;'>You have strong skills like {", ".join(matched[:3])}.</p>
+                            <br>
+                            <p style='color:#1a1a2e !important;'><strong>👉 To go further:</strong></p>
+                            <ul style='color:#1a1a2e !important;'>
+                                <li>Work on advanced projects</li>
+                                <li>Build a portfolio</li>
+                                <li>Prepare for interviews</li>
+                            </ul>
+                        </div>
                         """
                     
-                    st.markdown(f"""
-                    <div style="background-color:#0f172a; padding:15px; border-radius:12px; border-left:5px solid #22c55e; margin-top:10px;">
-                        {feedback}
-                    </div>
-                    """, unsafe_allow_html=True)
+                    st.markdown(feedback, unsafe_allow_html=True)
                     
                     # Resume Improvement Suggestions
                     st.subheader("✨ Resume Improvement Suggestions")
@@ -584,10 +633,15 @@ if uploaded_file is not None:
                         color=data["Category"],
                         color_discrete_map={"Matched": "#22c55e", "Missing": "#ef4444"}
                     )
+                    fig.update_layout(
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        font_color='white'
+                    )
                     st.plotly_chart(fig, use_container_width=True)
                     
                     # PDF Report Generation
-                    if st.button("📄 Generate PDF Report"):
+                    if st.button("📄 Generate PDF Report", use_container_width=True):
                         report_data = {
                             "job_role": job_role,
                             "score": final_score,
@@ -599,7 +653,8 @@ if uploaded_file is not None:
                             st.download_button(
                                 "⬇ Download Report",
                                 f,
-                                file_name="resume_report.pdf"
+                                file_name="resume_report.pdf",
+                                use_container_width=True
                             )
                     
                     # Suggested Projects
@@ -608,14 +663,21 @@ if uploaded_file is not None:
                         st.write("🚀", p)
                     
                     # Reset button
-                    if st.button("🔄 Analyze Another Resume"):
+                    if st.button("🔄 Analyze Another Resume", use_container_width=True):
                         st.session_state.analyze = False
                         st.session_state.saved = False
                         st.rerun()
 
-# Show history at the bottom (after analysis)
+# Show history at the bottom
 st.markdown("---")
 show_history(st.session_state.username)
+
+# Logout button at bottom
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    if st.button("🚪 Logout", use_container_width=True):
+        st.session_state.logged_in = False
+        st.rerun()
 
 # Footer
 st.markdown("""
