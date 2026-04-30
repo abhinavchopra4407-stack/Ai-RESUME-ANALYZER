@@ -111,40 +111,75 @@ if "otp_verified" not in st.session_state:
     st.session_state.otp_verified = False
 
 def login_page():
-    st.title("🔐 Login with OTP")
+    # Add big title at the top
+    st.markdown("""
+    <div style='text-align: center; padding: 20px;'>
+        <h1 style='
+            font-size: 48px; 
+            background: linear-gradient(135deg, #6366f1 0%, #22c55e 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        '>🤖 AI RESUME ANALYZER</h1>
+        <p style='color: #888; font-size: 18px;'>AI-powered resume insights to match your dream job 🚀</p>
+    </div>
+    """, unsafe_allow_html=True)
     
-    email = st.text_input("📧 Enter your Email")
+    st.markdown("---")
     
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if st.button("📨 Send OTP", use_container_width=True):
-            if email and re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
-                otp = generate_otp()
-                st.session_state.otp = otp
-                st.session_state.email = email
-                
-                # Try to send email, show OTP on failure
-                if send_otp(email, otp):
-                    st.success("✅ OTP sent to your email!")
-                else:
-                    st.warning(f"⚠️ Could not send email. Your OTP is: **{otp}**")
-            else:
-                st.error("❌ Please enter a valid email")
-    
-    user_otp = st.text_input("🔑 Enter OTP", type="password")
+    # Login form
+    col1, col2, col3 = st.columns([1, 2, 1])
     
     with col2:
-        if st.button("✅ Verify OTP", use_container_width=True):
-            if user_otp == st.session_state.get("otp"):
-                st.session_state.logged_in = True
-                st.session_state.username = email
-                st.session_state.otp_verified = True
-                st.success("✅ Login successful!")
-                time.sleep(1)
-                st.rerun()
-            else:
-                st.error("❌ Invalid OTP")
+        st.markdown("### 🔐 Login to Continue")
+        
+        email = st.text_input("📧 Email Address", placeholder="you@example.com", key="login_email")
+        
+        col_a, col_b = st.columns(2)
+        
+        with col_a:
+            if st.button("📨 Send OTP", use_container_width=True):
+                if not email:
+                    st.error("❌ Please enter email address")
+                elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
+                    st.error("❌ Please enter a valid email address")
+                else:
+                    otp = generate_otp()
+                    st.session_state.otp = otp
+                    st.session_state.email = email
+                    
+                    # Show OTP in UI for testing
+                    st.info(f"📧 Test OTP: **{otp}**")
+                    
+                    # Try to send email
+                    if send_otp(email, otp):
+                        st.success("✅ OTP sent to your email!")
+                    else:
+                        st.warning("⚠️ Using on-screen OTP for demo")
+        
+        user_otp = st.text_input("🔑 Enter OTP", type="password", placeholder="Enter 6-digit code", key="login_otp")
+        
+        with col_b:
+            if st.button("✅ Verify & Login", use_container_width=True):
+                if not user_otp:
+                    st.error("❌ Please enter OTP")
+                elif user_otp == st.session_state.get("otp"):
+                    st.session_state.logged_in = True
+                    st.session_state.username = st.session_state.email
+                    st.success("✅ Login successful! Redirecting...")
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error("❌ Invalid OTP. Please try again.")
+        
+        # Add some style
+        st.markdown("""
+        <div style='text-align: center; margin-top: 30px;'>
+            <p style='color: #666; font-size: 12px;'>
+                🔒 Secure login • OTP valid for 10 minutes
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 
 if not st.session_state.logged_in:
     login_page()
