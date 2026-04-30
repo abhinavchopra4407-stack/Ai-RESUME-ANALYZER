@@ -1,3 +1,5 @@
+
+
 import streamlit as st
 import PyPDF2
 import re
@@ -59,29 +61,29 @@ if "logged_in" not in st.session_state:
 import re
 
 def login_page():
-    st.title("🔐 Login with OTP")
+    st.title("Login with OTP")
 
     email = st.text_input("Enter your Email")  # ✅ defined here
 
-if st.button("Send OTP"):
+    if st.button("Send OTP"):
 
         if not email:
             st.error("❌ Please enter email")
 
+        elif email and not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
+            st.error("❌ Invalid email format")
+
         else:
             otp = generate_otp()
-            st.session_state.otp = otp   
+            st.session_state.otp = otp
             st.session_state.email = email
 
-            # ✅ DEBUG LINE (ADD HERE)
             st.write("Sending OTP to:", email)
 
-            # send email
             if send_otp(email, otp):
-                st.success("OTP sent to your email")
+                st.success("OTP sent successfully")
             else:
                 st.error("Failed to send OTP")
-
 
         user_otp = st.text_input("Enter OTP")
 
