@@ -53,42 +53,38 @@ if "logged_in" not in st.session_state:
 
 import re
 
+import re
+import streamlit as st
+
 def login_page():
     st.title("Login with OTP")
 
-    email = st.text_input("Enter your Email")  # ✅ defined here
+    email = st.text_input("Enter your Email")
 
-if st.button("Send OTP"):
+    if st.button("Send OTP"):
 
-    if not email:
-        st.error("❌ Please enter email")
+        if email == "":
+            st.error("Enter email")
 
-    elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
-        st.error("❌ Invalid email format")
+        elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
+            st.error("Invalid email")
 
-    else:
-        otp = generate_otp()
-
-        # ✅ SAVE OTP properly
-        st.session_state["otp"] = str(otp)
-        st.session_state["email"] = email
-
-        st.write("Sending OTP to:", email)
-
-        if send_otp(email, otp):
-            st.success("OTP sent successfully")
         else:
-            st.error("Failed to send OTP")
-user_otp = st.text_input("Enter OTP")
+            otp = "123456"   # TEMP (testing only)
 
-if st.button("Verify OTP"):
-    if user_otp == st.session_state.get("otp"):
-        st.session_state.logged_in = True
-        st.session_state.username = st.session_state.get("email")
-        st.success("Login successful ✅")
-        st.rerun()
-    else:
-        st.error("Invalid OTP ❌")
+            st.session_state["otp"] = otp
+            st.session_state["email"] = email
+
+            st.success("OTP sent (check screen for now)")
+            st.write("OTP is:", otp)   # 👈 TEMP DEBUG
+
+    user_otp = st.text_input("Enter OTP")
+
+    if st.button("Verify OTP"):
+        if user_otp == st.session_state.get("otp"):
+            st.success("Login successful")
+        else:
+            st.error("Wrong OTP")
 
 # 🚨 MUST BE HERE
 if not st.session_state.logged_in:
