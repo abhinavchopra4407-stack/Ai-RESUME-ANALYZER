@@ -1,5 +1,3 @@
-
-
 import streamlit as st
 import PyPDF2
 import re
@@ -35,17 +33,17 @@ def save_history(username, job_role, score):
         json.dump(data, f, indent=4)
         
 
-def send_otp(receiver_email, otp):
-    try:
-        yag.send(
-            to=receiver_email,
-            subject="Your Login OTP",
-            contents=f"Your OTP is: {otp}"
-        )
-        return True
-    except Exception as e:
-        print("ERROR:", e)
-        return False
+def send_otp(email, otp):
+    yag = yagmail.SMTP(
+        user=st.secrets["EMAIL"],
+        password=st.secrets["PASSWORD"]
+    )
+
+    yag.send(
+        to=email,  # ✅ dynamic
+        subject="Your Login OTP",
+        contents=f"Your OTP is: {otp}"
+    )
 # ---------------- LOGIN STATE -------------
 
 if "logged_in" not in st.session_state:
@@ -53,38 +51,37 @@ if "logged_in" not in st.session_state:
 
 import re
 
-import re
-import streamlit as st
-
 def login_page():
-    st.title("Login with OTP")
+    st.title("🔐 Login with OTP")
 
-    email = st.text_input("Enter your Email")
+    email = st.text_input("Enter your Email")  # ✅ defined here
 
     if st.button("Send OTP"):
 
-        if email == "":
-            st.error("Enter email")
+        if not email:
+            st.error("❌ Please enter email")
 
         elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
-            st.error("Invalid email")
+            st.error("❌ Invalid email format")
 
         else:
-            otp = "123456"   # TEMP (testing only)
+            otp = generate_otp()
+            st.session_state.otp = otp
+            st.session_state.email = email
 
-            st.session_state["otp"] = otp
-            st.session_state["email"] = email
-
-            st.success("OTP sent (check screen for now)")
-            st.write("OTP is:", otp)   # 👈 TEMP DEBUG
+            send_otp(email, otp)
+            st.success("OTP sent to your email")
 
     user_otp = st.text_input("Enter OTP")
 
     if st.button("Verify OTP"):
         if user_otp == st.session_state.get("otp"):
-            st.success("Login successful")
+            st.session_state.logged_in = True
+            st.session_state.username = email
+            st.success("Login successful ✅")
+            st.rerun()
         else:
-            st.error("Wrong OTP")
+            st.error("Invalid OTP ❌")
 
 # 🚨 MUST BE HERE
 if not st.session_state.logged_in:
