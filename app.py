@@ -324,7 +324,7 @@ if not st.session_state.logged_in:
     login_page()
     st.stop()
 
-# ============= STEP 5: MAIN APP (Original UI) =============
+# ============= STEP 5: MAIN APP =============
 
 # Apply styling
 st.markdown("""
@@ -367,10 +367,8 @@ with col2:
         st.session_state.logged_in = False
         st.rerun()
 
-# Show history
-show_history(st.session_state.username)
-
-# Create 3 columns for centered content
+# Create layout without history at the top
+# Just the upload section first
 col1, col2, col3 = st.columns([1, 2, 1])
 
 with col2:
@@ -614,3 +612,14 @@ if uploaded_file is not None:
                         st.session_state.analyze = False
                         st.session_state.saved = False
                         st.rerun()
+
+# Show history at the bottom (after analysis)
+st.markdown("---")
+show_history(st.session_state.username)
+
+# Footer
+st.markdown("""
+<div style='text-align: center; padding: 20px; margin-top: 20px;'>
+    <p style='color: #666; font-size: 12px;'>© 2024 AI Resume Analyzer | Secure & Private</p>
+</div>
+""", unsafe_allow_html=True)
