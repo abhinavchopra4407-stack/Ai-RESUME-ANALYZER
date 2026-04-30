@@ -11,11 +11,49 @@ import json
 from datetime import datetime
 import random
 import yagmail
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart  
+
+# ============= STEP 1: IMMEDIATE SESSION STATE INITIALIZATION =============
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+if "otp" not in st.session_state:
+    st.session_state.otp = None
+if "email" not in st.session_state:
+    st.session_state.email = None
+if "username" not in st.session_state:
+    st.session_state.username = None
+if "analyze" not in st.session_state:
+    st.session_state.analyze = False
+if "pdf_ready" not in st.session_state:
+    st.session_state.pdf_ready = False
+if "saved" not in st.session_state:
+    st.session_state.saved = False
+if "final_score" not in st.session_state:
+    st.session_state.final_score = None
+if "job_role" not in st.session_state:
+    st.session_state.job_role = None
+if "matched" not in st.session_state:
+    st.session_state.matched = []
+if "missing" not in st.session_state:
+    st.session_state.missing = []
+if "resume_text" not in st.session_state:
+    st.session_state.resume_text = None
+if "uploaded" not in st.session_state:
+    st.session_state.uploaded = False
+if "resume_brief" not in st.session_state:
+    st.session_state.resume_brief = None
+
+# ============= STEP 2: PAGE CONFIGURATION =============
+st.set_page_config(
+    page_title="AI Resume Analyzer",
+    page_icon="🤖",
+    layout="wide"
+)
+
+# ============= STEP 3: DEFINE ALL FUNCTIONS =============
+
 def generate_otp():
     return str(random.randint(100000, 999999))
+
 def save_history(username, job_role, score):
     try:
         with open("history.json", "r") as f:
@@ -34,380 +72,485 @@ def save_history(username, job_role, score):
 
     with open("history.json", "w") as f:
         json.dump(data, f, indent=4)
-        
 
 def send_otp(email, otp):
     try:
-        # Email configuration
-        sender_email = st.secrets["EMAIL"]
-        sender_password = st.secrets["PASSWORD"]
+        if "EMAIL" not in st.secrets or "PASSWORD" not in st.secrets:
+            st.error("❌ Email configuration missing. Please contact support.")
+            return False
+            
+        yag = yagmail.SMTP(
+            user=st.secrets["EMAIL"],
+            password=st.secrets["PASSWORD"]
+        )
         
-        # Create message
-        msg = MIMEMultipart()
-        msg['From'] = sender_email
-        msg['To'] = email
-        msg['Subject'] = "Your Login OTP"
-        
-        # Email body
-        body = f"""
+        html_content = f"""
+        <!DOCTYPE html>
         <html>
-        <body>
-            <h2>🔐 Your OTP Code</h2>
-            <p>Your One-Time Password (OTP) is: <strong>{otp}</strong></p>
-            <p>This OTP is valid for this session only.</p>
-            <hr>
-            <p>If you didn't request this, please ignore this email.</p>
-            <p>Best regards,<br>AI Resume Analyzer Team</p>
+        <body style="font-family: Arial, sans-serif;">
+            <div style="max-width: 500px; margin: 0 auto; padding: 20px;">
+                <div style="background: linear-gradient(135deg, #6366f1 0%, #22c55e 100%); padding: 30px; border-radius: 12px; text-align: center;">
+                    <h1 style="color: white; margin: 0;">🤖 AI Resume Analyzer</h1>
+                </div>
+                <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <h2>Hello,</h2>
+                    <p>Your verification code is:</p>
+                    <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
+                        <span style="font-size: 48px; font-weight: bold; letter-spacing: 8px; color: #6366f1;">{otp}</span>
+                    </div>
+                    <p>This code will expire in 10 minutes.</p>
+                    <p>If you didn't request this, please ignore this email.</p>
+                </div>
+            </div>
         </body>
         </html>
         """
         
-        msg.attach(MIMEText(body, 'html'))
-        
-        # Send email
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(sender_email, sender_password)
-            server.send_message(msg)
-            
+        yag.send(
+            to=email,
+            subject="🔐 Your Verification Code - AI Resume Analyzer",
+            contents=html_content
+        )
         return True
         
     except Exception as e:
-        st.error(f"Email error: {str(e)}")
+        st.error("❌ Failed to send OTP. Please try again or contact support.")
         return False
-# ---------------- LOGIN STATE -------------
 
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-
-import re
 def login_page():
-    # Add big title at the top
     st.markdown("""
-    <div style='text-align: center; padding: 20px;'>
-        <h1 style='
-            font-size: 48px; 
-            background: linear-gradient(135deg, #6366f1 0%, #22c55e 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 10px;
-        '>🤖 AI RESUME ANALYZER</h1>
+    <div style='text-align: center; padding: 40px 20px 20px 20px;'>
+        <h1 style='font-size: 48px; background: linear-gradient(135deg, #6366f1 0%, #22c55e 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;'>
+            🤖 AI RESUME ANALYZER
+        </h1>
         <p style='color: #888; font-size: 18px;'>AI-powered resume insights to match your dream job 🚀</p>
     </div>
     """, unsafe_allow_html=True)
     
     st.markdown("---")
     
-    # Login form
     col1, col2, col3 = st.columns([1, 2, 1])
     
     with col2:
         st.markdown("### 🔐 Login to Continue")
         
-        email = st.text_input("📧 Email Address", placeholder="you@example.com", key="login_email")
+        email = st.text_input("📧 Email Address", placeholder="you@example.com", key="login_email_input")
         
-        col_a, col_b = st.columns(2)
-        
-        with col_a:
-            if st.button("📨 Send OTP", use_container_width=True):
-                if not email:
-                    st.error("❌ Please enter email address")
-                elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
-                    st.error("❌ Please enter a valid email address")
+        if st.button("📨 Send OTP", use_container_width=True):
+            if not email:
+                st.error("❌ Please enter email address")
+            elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
+                st.error("❌ Please enter a valid email address")
+            else:
+                otp = generate_otp()
+                st.session_state.otp = otp
+                st.session_state.email = email
+                
+                if send_otp(email, otp):
+                    st.success("✅ OTP sent successfully to your email!")
                 else:
-                    otp = generate_otp()
-                    st.session_state.otp = otp
-                    st.session_state.email = email
-                    
-                    # Show OTP in UI for testing
-                    st.info(f"📧 Test OTP: **{otp}**")
-                    
-                    # Try to send email
-                    if send_otp(email, otp):
-                        st.success("✅ OTP sent to your email!")
-                    else:
-                        st.warning("⚠️ Using on-screen OTP for demo")
+                    st.error("❌ Failed to send OTP. Please try again.")
         
-        user_otp = st.text_input("🔑 Enter OTP", type="password", placeholder="Enter 6-digit code", key="login_otp")
+        user_otp = st.text_input("🔑 Enter OTP", type="password", placeholder="Enter 6-digit code", key="login_otp_input")
         
-        with col_b:
-            if st.button("✅ Verify & Login", use_container_width=True):
-                if not user_otp:
-                    st.error("❌ Please enter OTP")
-                elif user_otp == st.session_state.get("otp"):
-                    st.session_state.logged_in = True
-                    st.session_state.username = st.session_state.email
-                    st.success("✅ Login successful! Redirecting...")
-                    time.sleep(1)
-                    st.rerun()
-                else:
-                    st.error("❌ Invalid OTP. Please try again.")
-        
-        # Add some style
-        st.markdown("""
-        <div style='text-align: center; margin-top: 30px;'>
-            <p style='color: #666; font-size: 12px;'>
-                🔒 Secure login • OTP valid for 10 minutes
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+        if st.button("✅ Verify & Login", use_container_width=True):
+            if not user_otp:
+                st.error("❌ Please enter OTP")
+            elif user_otp == st.session_state.get("otp"):
+                st.session_state.logged_in = True
+                st.session_state.username = st.session_state.email
+                st.success("✅ Login successful! Redirecting...")
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.error("❌ Invalid OTP. Please try again.")
 
-# 🚨 MUST BE HERE
-if not st.session_state.logged_in:
-    login_page()
-    st.stop()
 def show_history(username):
     try:
         with open("history.json", "r") as f:
             data = json.load(f)
     except:
         data = {}
-
-    st.subheader("📜 Your Previous Reports")
-
-    if username in data:
-        for item in reversed(data[username]):
-            st.write(f"💼 {item['job_role']} | 🎯 {item['score']}% | 🕒 {item['date']}")
+    
+    if username in data and data[username]:
+        for item in reversed(data[username][-5:]):
+            st.markdown(f"""
+            <div style='
+                background: #0f172a;
+                padding: 12px;
+                border-radius: 10px;
+                margin-bottom: 10px;
+                border-left: 4px solid #22c55e;
+            '>
+                💼 <strong>{item['job_role']}</strong> &nbsp;&nbsp; 🎯 {item['score']}% &nbsp;&nbsp; 🕒 {item['date']}
+            </div>
+            """, unsafe_allow_html=True)
     else:
-        st.info("No history yet")         
-if "pdf_ready" not in st.session_state:
-    st.session_state.pdf_ready = False
-st.set_page_config(
-    page_title="",
-    page_icon="🤖",
-    layout="wide"
-)
-st.markdown("<h1 style='text-align:center;'>🤖 AI Resume Analyzer</h1>", unsafe_allow_html=True)
-st.caption("AI-powered resume insights to match your dream job 🚀")
-def create_pdf(report_data):
-    doc = SimpleDocTemplate("resume_report.pdf")
-    styles = getSampleStyleSheet()
+        st.info("📭 No history yet. Upload a resume to get started!")
 
-    elements = []
-
-# Title
-    elements.append(Paragraph("AI Resume Analysis Report", styles['Title']))
-    elements.append(Spacer(1, 20))
-
-    # Score Box
-    elements.append(Paragraph(f"<b>Final Score:</b> {report_data['score']}%", styles['Heading2']))
-    elements.append(Spacer(1, 15))
-
-    # Job Role
-    elements.append(Paragraph(f"<b>Target Role:</b> {report_data['job_role']}", styles['Normal']))
-    elements.append(Spacer(1, 15))
-
-    # Matched Skills
-    elements.append(Paragraph("<b>Matched Skills:</b>", styles['Heading2']))
-    for skill in report_data['matched']:
-        elements.append(Paragraph(f"• {skill}", styles['Normal']))
-    elements.append(Spacer(1, 10))
-
-    # Missing Skills
-    elements.append(Paragraph("<b>Missing Skills:</b>", styles['Heading2']))
-    for skill in report_data['missing']:
-        elements.append(Paragraph(f"• {skill}", styles['Normal']))
-    elements.append(Spacer(1, 20))
-    elements.append(Paragraph("<b>Recommended Learning Path:</b>", styles['Heading2']))
-    for skill in report_data['missing'][:5]:
-        elements.append(Paragraph(f"• Learn {skill} through projects and practice", styles['Normal']))
-    elements.append(Spacer(1, 20))
-
-
-    doc.build(elements)
-def set_bg(image_file):
-    import base64
-    with open(image_file, "rb") as f:
-        data = base64.b64encode(f.read()).decode()
-
-    st.markdown(f"""
-    <style>
-
-    /* Transparent header */
-    header {{
-        background: transparent !important;
-    }}
-
-    [data-testid="stHeader"] {{
-        background: transparent !important;
-    }}
-
-    /* Remove spacing */
-    .block-container {{
-        padding-top: 0rem;
-    }}
-
-    /* Full background */
-    .stApp {{
-        background-image: url("data:image/png;base64,{data}");
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
-    }}
-
-    </style>
-    """, unsafe_allow_html=True)
-# ---------------- PAGE CONFIG ----------------
-
- 
-# ---------------- STYLING ----------------
-st.markdown("""
-<style>
-
-/* Fix background container */
-.block-container {
-    background: rgba(0, 0, 0, 0.2);  /* lighter */
-    padding: 20px;
-    border-radius: 15px;
-}
-
-/* Fix text visibility */
-h1, h2, h3, h4, h5, h6, p, div, span, label {
-    color: white !important;
-}
-
-/* Input fields */
-input {
-    background-color: #0f172a !important;
-    color: white !important;
-}
-
-/* Buttons */
-button {
-    background: linear-gradient(90deg, #6366f1, #22c55e);
-    color: white !important;
-    border-radius: 8px !important;
-}
-
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-thumb { background: #38bdf8; }
-
-</style>
-""", unsafe_allow_html=True)
-set_bg("robot.jpg")
-col1, col2 = st.columns([6,1])
-
-with col2:
-    if st.button("🚪 Logout"):
-        st.session_state.logged_in = False
-        st.rerun()
-# ---------------- EXTRACT TEXT ----------------
 def extract_text(file):
     pdf_reader = PyPDF2.PdfReader(file)
     text = ""
     for page in pdf_reader.pages:
         text += page.extract_text() or ""
     return text
- 
-# ---------------- SECTION EXTRACTOR ----------------
-def extract_sections(text):
-    sections = {"skills": "", "education": ""}
-    text_lower = text.lower()
- 
-    skill_match = re.search(r"skills(.*?)(education|projects|experience|$)", text_lower, re.DOTALL)
-    if skill_match:
-        sections["skills"] = skill_match.group(1)
- 
-    edu_match = re.search(r"education(.*?)(projects|experience|skills|$)", text_lower, re.DOTALL)
-    if edu_match:
-        sections["education"] = edu_match.group(1)
- 
-    return sections
- 
-# ---------------- CLEAN SKILLS ----------------
-def clean_skills(text):
-    return [s.strip().title() for s in re.split(r",|\n|•", text) if len(s.strip()) > 2]
- 
-# ---------------- CLEAN EDUCATION ----------------
-def clean_education(text):
-    lines = text.split("\n")
-    return [l.strip() for l in lines if len(l.strip()) > 5]
- 
-# ---------------- SKILL DATABASE ----------------
-SKILL_DB = {
-    "data scientist": [
-        "python", "machine learning", "pandas", "numpy",
-        "matplotlib", "seaborn", "sql", "statistics"
-    ],
-    "ml engineer": [
-        "python", "tensorflow", "pytorch", "deep learning",
-        "nlp", "cnn", "model deployment"
-    ],
-    "data analyst": [
-        "excel", "sql", "power bi", "tableau",
-        "python", "data visualization"
-    ],
-    "business analyst": [
-        "excel", "sql", "data analysis", "power bi",
-        "communication", "problem solving"
-    ],
-    "web developer": [
-        "html", "css", "javascript", "react",
-        "node.js", "mongodb"
-    ],
-    "frontend developer": [
-        "html", "css", "javascript", "react",
-        "bootstrap", "ui/ux"
-    ],
-    "backend developer": [
-        "python", "java", "node.js", "sql",
-        "api development", "database management"
-    ],
-    "full stack developer": [
-        "html", "css", "javascript", "react",
-        "node.js", "mongodb", "api"
-    ],
-    "android developer": [
-        "java", "kotlin", "android sdk",
-        "firebase", "rest api"
-    ],
-    "ios developer": [
-        "swift", "ios sdk", "xcode",
-        "api integration"
-    ],
-    "software engineer": [
-        "data structures", "algorithms", "java",
-        "python", "oop", "problem solving"
-    ],
-    "devops engineer": [
-        "docker", "kubernetes", "ci/cd",
-        "aws", "linux", "shell scripting"
-    ],
-    "cloud engineer": [
-        "aws", "azure", "gcp",
-        "cloud architecture", "networking"
-    ],
-    "cyber security analyst": [
-        "network security", "ethical hacking",
-        "penetration testing", "cryptography"
-    ],
-    "ai engineer": [
-        "python", "machine learning", "deep learning",
-        "tensorflow", "nlp"
-    ],
-    "nlp engineer": [
-        "python", "nlp", "text processing",
-        "transformers", "machine learning"
-    ],
-    "computer vision engineer": [
-        "python", "opencv", "image processing",
-        "deep learning", "cnn"
-    ],
-    "game developer": [
-        "unity", "c#", "game design",
-        "graphics", "physics"
-    ],
-    "blockchain developer": [
-        "solidity", "ethereum", "smart contracts",
-        "web3", "cryptography"
-    ],
-    "qa engineer": [
-        "testing", "selenium", "automation testing",
-        "api testing", "bug tracking"
+
+def generate_resume_brief(text):
+    """Generate a comprehensive brief of the resume"""
+    
+    # Extract email
+    email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+    emails = re.findall(email_pattern, text)
+    email_found = emails[0] if emails else "Not found"
+    
+    # Extract phone number
+    phone_pattern = r'\b(?:\+?91)?\s?[6-9]\d{9}\b|\b\d{3}[-.]?\d{3}[-.]?\d{4}\b'
+    phones = re.findall(phone_pattern, text)
+    phone_found = phones[0] if phones else "Not found"
+    
+    # Extract name
+    lines = text.split('\n')
+    name = "Not found"
+    for line in lines[:10]:
+        line = line.strip()
+        if len(line.split()) in [2, 3] and line.istitle() and len(line) < 30:
+            name = line
+            break
+        if 'name:' in line.lower():
+            name = line.split(':', 1)[1].strip()
+            break
+    
+    # Extract skills
+    common_skills = [
+        'python', 'java', 'javascript', 'sql', 'react', 'angular', 'vue', 'node.js',
+        'machine learning', 'deep learning', 'ai', 'data science', 'pandas', 'numpy',
+        'tensorflow', 'pytorch', 'aws', 'azure', 'docker', 'kubernetes', 'git',
+        'html', 'css', 'c++', 'c#', 'php', 'ruby', 'swift', 'kotlin', 'flutter',
+        'django', 'flask', 'mongodb', 'mysql', 'postgresql', 'rest api', 'graphql'
     ]
+    
+    found_skills = []
+    text_lower = text.lower()
+    for skill in common_skills:
+        if skill in text_lower:
+            found_skills.append(skill.title())
+    
+    found_skills = list(dict.fromkeys(found_skills))
+    
+    # Extract education
+    education_keywords = [
+        'bachelor', 'master', 'b.tech', 'm.tech', 'b.e', 'm.e', 'phd', 'b.sc', 
+        'm.sc', 'b.com', 'm.com', 'bca', 'mca', 'engineering', 'computer science',
+        'information technology', 'diploma', 'b.b.a', 'm.b.a', 'b.a', 'm.a'
+    ]
+    
+    education_found = []
+    lines_lower = [line.lower() for line in lines]
+    for i, line in enumerate(lines_lower):
+        for keyword in education_keywords:
+            if keyword in line and len(line) > 15:
+                edu_text = lines[i].strip()
+                if edu_text not in education_found:
+                    education_found.append(edu_text)
+                    break
+        if len(education_found) >= 3:
+            break
+    
+    # Extract projects
+    project_keywords = ['project', 'projects:', 'mini project', 'major project']
+    projects_found = []
+    for i, line in enumerate(lines_lower):
+        for keyword in project_keywords:
+            if keyword in line and i + 1 < len(lines):
+                project_line = lines[i].strip()
+                if len(project_line) > 10:
+                    projects_found.append(project_line)
+                if i + 1 < len(lines) and len(lines[i+1].strip()) > 10:
+                    projects_found.append(lines[i+1].strip())
+                break
+        if len(projects_found) >= 5:
+            break
+    
+    projects_found = list(dict.fromkeys(projects_found))[:5]
+    
+    # Extract certifications
+    cert_keywords = ['certification', 'certificate', 'certified', 'coursera', 'udemy', 'edx']
+    certifications_found = []
+    for i, line in enumerate(lines_lower):
+        for keyword in cert_keywords:
+            if keyword in line:
+                cert_line = lines[i].strip()
+                if len(cert_line) > 10:
+                    certifications_found.append(cert_line)
+                    break
+        if len(certifications_found) >= 3:
+            break
+    
+    # Extract links
+    github_pattern = r'github\.com/[^\s]+'
+    linkedin_pattern = r'linkedin\.com/in/[^\s]+'
+    
+    github = re.findall(github_pattern, text_lower)
+    linkedin = re.findall(linkedin_pattern, text_lower)
+    
+    # Determine if fresher
+    exp_pattern = r'\b(19|20)\d{2}\s*[-–to]+\s*(?:present|current|(19|20)\d{2})\b'
+    experiences = re.findall(exp_pattern, text, re.IGNORECASE)
+    
+    internship_keywords = ['intern', 'internship', 'trainee']
+    has_internship = any(keyword in text_lower for keyword in internship_keywords)
+    
+    if len(experiences) > 0:
+        experience_level = f"{len(experiences)} years"
+        is_fresher = False
+    elif has_internship:
+        experience_level = "Internship Experience"
+        is_fresher = True
+    else:
+        experience_level = "Fresher / Entry Level"
+        is_fresher = True
+    
+    brief = {
+        'name': name,
+        'email': email_found,
+        'phone': phone_found,
+        'skills': found_skills[:15],
+        'education': education_found,
+        'projects': projects_found,
+        'certifications': certifications_found,
+        'github': github[0] if github else None,
+        'linkedin': linkedin[0] if linkedin else None,
+        'experience_level': experience_level,
+        'is_fresher': is_fresher,
+        'has_internship': has_internship
+    }
+    
+    return brief
+
+def display_resume_brief(brief):
+    """Display the resume brief in a nice format"""
+    
+    st.markdown("""
+    <style>
+    .brief-card {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        padding: 20px;
+        border-radius: 15px;
+        margin-bottom: 20px;
+        border: 1px solid #334155;
+    }
+    .brief-header {
+        background: linear-gradient(135deg, #6366f1, #22c55e);
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    .info-card {
+        background: #0f172a;
+        padding: 15px;
+        border-radius: 10px;
+        text-align: center;
+        border: 1px solid #334155;
+    }
+    .info-label {
+        font-size: 12px;
+        color: #888;
+        margin-bottom: 8px;
+    }
+    .info-value {
+        font-size: 16px;
+        font-weight: bold;
+        color: #22c55e;
+        word-break: break-all;
+    }
+    .skill-tag {
+        background: #6366f1;
+        color: white;
+        padding: 5px 12px;
+        border-radius: 20px;
+        display: inline-block;
+        margin: 5px;
+        font-size: 13px;
+    }
+    .project-item {
+        background: #0f172a;
+        padding: 10px;
+        border-radius: 8px;
+        margin-bottom: 8px;
+        border-left: 3px solid #22c55e;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Header
+    st.markdown("""
+    <div class='brief-header'>
+        <h2 style='color: white; margin: 0;'>📄 Resume Brief</h2>
+        <p style='color: white; margin: 5px 0 0 0; opacity: 0.9'>Quick overview of your resume</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Personal Information Grid
+    st.markdown("### 👤 Personal Information")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown(f"""
+        <div class='info-card'>
+            <div class='info-label'>Name</div>
+            <div class='info-value'>{brief['name']}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        email_display = brief['email'] if brief['email'] != "Not found" else "❌ Not found"
+        st.markdown(f"""
+        <div class='info-card'>
+            <div class='info-label'>📧 Email</div>
+            <div class='info-value' style='font-size: 12px;'>{email_display}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown(f"""
+        <div class='info-card'>
+            <div class='info-label'>📞 Phone</div>
+            <div class='info-value'>{brief['phone']}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Links if available
+    if brief['github'] or brief['linkedin']:
+        st.markdown("### 🔗 Online Presence")
+        cols = st.columns(2)
+        if brief['github']:
+            with cols[0]:
+                st.markdown(f"""
+                <div class='info-card'>
+                    <div class='info-label'>💻 GitHub</div>
+                    <div class='info-value' style='font-size: 12px;'>{brief['github']}</div>
+                </div>
+                """, unsafe_allow_html=True)
+        if brief['linkedin']:
+            with cols[1]:
+                st.markdown(f"""
+                <div class='info-card'>
+                    <div class='info-label'>🔗 LinkedIn</div>
+                    <div class='info-value' style='font-size: 12px;'>{brief['linkedin']}</div>
+                </div>
+                """, unsafe_allow_html=True)
+    
+    # Experience Level
+    st.markdown("### 💼 Experience Level")
+    if brief['is_fresher']:
+        if brief['has_internship']:
+            st.info("🎓 **Fresher with Internship Experience** - Great! Highlight your internship projects and learnings.")
+        else:
+            st.warning("🎓 **Fresher** - Focus on showcasing your projects, certifications, and academic achievements.")
+    else:
+        st.success(f"📈 **{brief['experience_level']}** - Experienced professional")
+    
+    # Skills
+    st.markdown("### 🛠️ Technical Skills")
+    if brief['skills']:
+        skills_html = ""
+        for skill in brief['skills']:
+            skills_html += f"<span class='skill-tag'>{skill}</span>"
+        st.markdown(skills_html, unsafe_allow_html=True)
+        st.caption(f"Total skills detected: {len(brief['skills'])}")
+    else:
+        st.info("No technical skills detected. Add skills like Python, Java, SQL, etc.")
+    
+    # Projects
+    if brief['projects']:
+        st.markdown("### 🚀 Projects")
+        for project in brief['projects']:
+            st.markdown(f"""
+            <div class='project-item'>
+                📌 {project[:100]}
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.info("💡 No projects detected. Adding projects will strengthen your resume significantly!")
+    
+    # Education
+    if brief['education']:
+        st.markdown("### 🎓 Education")
+        for edu in brief['education']:
+            st.markdown(f"• {edu}")
+    else:
+        st.warning("⚠️ Education section not clearly identified")
+    
+    # Certifications
+    if brief['certifications']:
+        st.markdown("### 📜 Certifications")
+        for cert in brief['certifications']:
+            st.markdown(f"• {cert}")
+    
+    # Resume Insights
+    st.markdown("### 💡 Resume Insights")
+    
+    insights = []
+    
+    if len(brief['skills']) < 5:
+        insights.append("📌 **Add more technical skills** - Include programming languages, frameworks, and tools relevant to your target role.")
+    elif len(brief['skills']) > 10:
+        insights.append("✅ **Great skill diversity** - You have a good range of technical skills!")
+    
+    if len(brief['projects']) == 0:
+        insights.append("🚀 **Add projects** - As a fresher, projects are crucial to demonstrate practical skills.")
+    elif len(brief['projects']) < 3:
+        insights.append("💪 **Add more projects** - 3-4 quality projects will make your resume stand out.")
+    else:
+        insights.append("✅ **Good project portfolio** - Your projects showcase practical experience.")
+    
+    if not brief['education']:
+        insights.append("🎓 **Highlight education** - Add your degree, university, and CGPA/percentage.")
+    
+    if not brief['certifications']:
+        insights.append("📜 **Add certifications** - Online courses from Coursera, Udemy, or NPTEL add credibility.")
+    
+    if not brief['github'] and not brief['linkedin']:
+        insights.append("🔗 **Add GitHub & LinkedIn** - These are essential for recruiters to check your work.")
+    
+    insights.extend([
+        "📊 **Add achievements** - Include hackathon wins, coding competition rankings, or academic achievements.",
+        "🎯 **Tailor your resume** - Customize skills and projects for each job application.",
+        "📝 **Add a summary** - A 2-3 line professional summary at the top helps recruiters understand your profile."
+    ])
+    
+    for insight in insights[:6]:
+        st.markdown(insight)
+    
+    # Pro tip
+    st.markdown("""
+    <div style='background: #1e293b; padding: 15px; border-radius: 10px; margin-top: 15px; border-left: 4px solid #22c55e;'>
+        <strong>💡 Pro Tip for Freshers:</strong><br>
+        Focus on showing your project work, internship experience (if any), and technical skills.
+        Employers value practical knowledge over years of experience for entry-level roles!
+    </div>
+    """, unsafe_allow_html=True)
+
+# SKILL DATABASE
+SKILL_DB = {
+    "data scientist": ["python", "machine learning", "pandas", "numpy", "matplotlib", "seaborn", "sql", "statistics"],
+    "ml engineer": ["python", "tensorflow", "pytorch", "deep learning", "nlp", "cnn", "model deployment"],
+    "data analyst": ["excel", "sql", "power bi", "tableau", "python", "data visualization"],
+    "business analyst": ["excel", "sql", "data analysis", "power bi", "communication", "problem solving"],
+    "web developer": ["html", "css", "javascript", "react", "node.js", "mongodb"],
+    "frontend developer": ["html", "css", "javascript", "react", "bootstrap", "ui/ux"],
+    "backend developer": ["python", "java", "node.js", "sql", "api development", "database management"],
+    "full stack developer": ["html", "css", "javascript", "react", "node.js", "mongodb", "api"],
+    "software engineer": ["data structures", "algorithms", "java", "python", "oop", "problem solving"],
 }
- 
-# ---------------- SKILL MATCH ----------------
+
 def extract_skills(text):
     text = text.lower()
     skills = []
@@ -416,436 +559,135 @@ def extract_skills(text):
             if s in text:
                 skills.append(s)
     return list(set(skills))
- 
+
 def match_skills(user_skills, role):
     required = SKILL_DB.get(role.lower(), [])
     matched = [s for s in required if s in user_skills]
     missing = [s for s in required if s not in user_skills]
     score = int((len(matched) / len(required)) * 100) if required else 0
     return matched, missing, score
- 
-# ---------------- PROJECTS ----------------
-PROJECTS = {
-    "data scientist": [
-        "Customer Churn Prediction",
-        "House Price Prediction",
-        "Fraud Detection System"
-    ],
-    "ml engineer": [
-        "Image Classification using CNN",
-        "Chatbot using NLP",
-        "Recommendation System"
-    ],
-    "data analyst": [
-        "Sales Dashboard using Power BI",
-        "Customer Segmentation Analysis",
-        "Excel Data Cleaning Project"
-    ],
-    "business analyst": [
-        "Market Analysis Dashboard",
-        "Customer Behavior Analysis",
-        "Business KPI Tracker"
-    ],
-    "web developer": [
-        "Portfolio Website",
-        "E-commerce Website",
-        "Blog Platform"
-    ],
-    "frontend developer": [
-        "React Portfolio",
-        "Weather App (API based)",
-        "Netflix UI Clone"
-    ],
-    "backend developer": [
-        "REST API using Flask/Django",
-        "Authentication System",
-        "Blog Backend with Database"
-    ],
-    "full stack developer": [
-        "Full Stack E-commerce App",
-        "MERN Social Media App",
-        "Job Portal Website"
-    ],
-    "android developer": [
-        "To-Do App",
-        "Weather App",
-        "Chat Application"
-    ],
-    "ios developer": [
-        "Expense Tracker App",
-        "Fitness Tracker",
-        "Notes App"
-    ],
-    "software engineer": [
-        "Library Management System",
-        "Inventory Management System",
-        "Online Code Compiler"
-    ],
-    "devops engineer": [
-        "CI/CD Pipeline Project",
-        "Dockerized Web App",
-        "Kubernetes Deployment"
-    ],
-    "cloud engineer": [
-        "AWS Hosting Project",
-        "Cloud Storage System",
-        "Serverless App (Lambda)"
-    ],
-    "cyber security analyst": [
-        "Vulnerability Scanner",
-        "Password Strength Checker",
-        "Network Security Monitor"
-    ],
-    "ai engineer": [
-        "AI Chatbot",
-        "Face Recognition System",
-        "Voice Assistant"
-    ],
-    "nlp engineer": [
-        "Sentiment Analysis",
-        "Resume Parser",
-        "Text Summarization Tool"
-    ],
-    "computer vision engineer": [
-        "Object Detection System",
-        "Face Mask Detection",
-        "Image Classification App"
-    ],
-    "game developer": [
-        "2D Platformer Game",
-        "Snake Game",
-        "Unity 3D Game"
-    ],
-    "blockchain developer": [
-        "Cryptocurrency Wallet",
-        "Smart Contract App",
-        "Voting System using Blockchain"
-    ],
-    "qa engineer": [
-        "Automated Testing Framework",
-        "Selenium Test Suite",
-        "API Testing Tool"
-    ]
-}
- 
-# ---------------- STATE ----------------
-if "analyze" not in st.session_state:
-    st.session_state.analyze = False
- 
-# ---------------- UI ----------------
-# ---------------- LOGIN SYSTEM ----------------
 
+# ============= STEP 4: CHECK LOGIN STATUS =============
+if not st.session_state.logged_in:
+    login_page()
+    st.stop()
 
-          # 🚨 THIS IS CRITICAL
-st.title("🤖 AI Resume Analyzer")
-if st.session_state.logged_in:
-    show_history(st.session_state.username)
+# ============= STEP 5: MAIN APP =============
 
-# Create 3 columns (left empty, center content, right empty)
-col1, col2, col3 = st.columns([1,2,1])
+# Main app title
+st.markdown("""
+<div style='text-align: center; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 15px; margin-bottom: 30px;'>
+    <h1 style='font-size: 42px; color: white; margin: 0;'>🤖 AI Resume Analyzer</h1>
+    <p style='color: white; font-size: 16px; margin-top: 10px;'>AI-powered resume insights to match your dream job 🚀</p>
+</div>
+""", unsafe_allow_html=True)
+
+# Create layout
+col1, col2 = st.columns([3, 1])
 
 with col2:
-    st.markdown("""
-<style>
-.block-container {
-    background: transparent;
-}
+    st.markdown(f"""
+    <div style='background: #1e293b; padding: 20px; border-radius: 15px; margin-bottom: 20px; text-align: center;'>
+        <div style='font-size: 48px;'>👤</div>
+        <h3 style='color: white; margin: 10px 0;'>Welcome!</h3>
+        <p style='color: #888; font-size: 12px;'>{st.session_state.username}</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-[data-testid="stFileUploader"] {
-    border: 2px dashed #6366f1;
-    padding: 30px;
-    border-radius: 15px;
-    text-align: center;
-    background: #0f172a;
-}
-
-h1 {
-    text-align: center;
-}
-</style>
-""", unsafe_allow_html=True)
+with col1:
+    # History section
+    st.markdown("### 📜 Your Previous Reports")
+    show_history(st.session_state.username)
     
-    uploaded_file = st.file_uploader(
-        "Upload Resume (PDF)",
-        type=["pdf"],
-        label_visibility="collapsed"
-    )
-    set_bg("robot.jpg")
-if uploaded_file is not None:
-
-    try:
-        with st.spinner("📄 Reading your resume..."):
-            resume_text = extract_text(uploaded_file)
-
-        st.success("File uploaded successfully ✅")
-
-    except Exception as e:
-        st.error("❌ Error reading PDF. Please upload a valid file.")
-    set_bg("Analyst.jpg")
-    # -------- STEP 1 --------
-    if not st.session_state.analyze:
-        st.subheader("📄 Resume Preview")
-        st.text(resume_text[:1000])
- 
-        if st.button("🚀 Analyze Resume"):
-            st.session_state.analyze = True
- 
-    # -------- STEP 2 --------
-    else:
-        sections = extract_sections(resume_text)
- 
-        st.subheader("🎯 Enter Job Role")
-        job_role = st.text_input("Example: data scientist")
- 
-        col1, col2 = st.columns(2)
- 
-        # -------- LEFT --------
-        with col1:
-            st.subheader("🧠 Resume Skills")
-            skills = clean_skills(sections["skills"])
-            for s in skills:
-                st.write("•", s)
- 
-            st.subheader("🎓 Education")
-            edu = clean_education(sections["education"])
-            for e in edu:
-                st.write("•", e)
- 
-        # -------- RIGHT --------
-        with col2:
-
-            if job_role:
-
-                with st.spinner("🤖 Analyzing your resume..."):
-
-                    user_skills = extract_skills(resume_text)
-                    matched, missing, score = match_skills(user_skills, job_role)
-                    
-                if "saved" not in st.session_state or not st.session_state.saved:
-                    save_history(st.session_state.username, job_role, score)
-                    st.session_state.saved = True # 🚨 ENSURE THIS IS SET
-                    # ---------------- ROLE SUGGESTION ----------------
-                    st.subheader("🎯 Recommended Roles")
-
-                    role_scores = {}
-
-                    for role, skills_list in SKILL_DB.items():
-                        match_count = sum(1 for s in skills_list if s in user_skills)
-                        role_scores[role] = match_count
-
-                    # Sort roles by match
-                    sorted_roles = sorted(role_scores.items(), key=lambda x: x[1], reverse=True)
-
-                    # Top 3 roles
-                    top_roles = [r[0].title() for r in sorted_roles[:3]]
-
-                    st.success(f"Best suited roles: {', '.join(top_roles)}")
-                    st.subheader("📊 Score Breakdown")
-
-                    # Skill match percentage (already calculated)
-                    skill_score = score  
-
-                    # Resume skill coverage (how many skills user has)
-                    total_skills = len(matched) + len(missing)
-
-                    if total_skills > 0:
-                        resume_strength = int((len(matched) / total_skills) * 100)
-                    else:
-                        resume_strength = 0
-
-                    # Final score (average)
-                    final_score = int((skill_score + resume_strength) / 2)
-
-                    # Display
-                    st.write(f"✔ Skill Match: {skill_score}%")
-                    st.write(f"✔ Resume Strength: {resume_strength}%")
-                    st.write(f"🎯 Final Score: {final_score}%")
-                    
-                    # ---------------- RESUME STRENGTH FEEDBACK ----------------
-                    st.subheader("📊 Resume Strength Analysis")
-
-                    if score < 40:
-                        st.error("Your resume is weak for this role. Focus on building core skills and projects.")
-                    elif score < 70:
-                        st.warning("Your resume is average. Improve by adding more relevant skills and projects.")
-                    else:
-                        st.success("Your resume is strong and well aligned with the job role!")
-
-                    # Extra insight
-                    if len(missing) > len(matched):
-                        st.info("You are missing more skills than you have. Focus on skill development.")
-                    else:
-                        st.info("Good skill coverage. Now focus on projects and real-world experience.")
-                    
-                    st.subheader("📌 Feedback")
-
-                    if score < 40:
-                        feedback = f"""
-                    Your resume has limited matching skills for the role of {job_role}.
-
-                    You need to focus on building strong fundamentals and adding relevant projects.
-
-                    👉 Start with:
-                    • Learning core concepts
-                    • Building 2–3 beginner projects
-                    • Adding missing skills like {", ".join(missing[:3])}
-                    """
-                    elif score < 70:
-                        feedback = f"""
-                    Your profile is good but needs improvement for the role of {job_role}.
-
-                    You already have some relevant skills like {", ".join(matched[:3])}.
-
-                    👉 To improve:
-                    • Learn advanced tools like {", ".join(missing[:3])}
-                    • Add real-world projects
-                    • Strengthen your resume with achievements
-                    """
-                    else:
-                        feedback = f"""
-                    Excellent! Your resume is well aligned with the role of {job_role}.
-
-                    You have strong skills like {", ".join(matched[:3])}.
-
-                    👉 To go further:
-                    • Work on advanced projects
-                    • Build a portfolio
-                    • Prepare for interviews
-                    """
-
-                    st.markdown(f"""
-                    <div style="
-                        background-color:#0f172a;
-                        padding:15px;
-                        border-radius:12px;
-                        border-left:5px solid #22c55e;
-                        margin-top:10px;">
-                        {feedback}
-                    </div>
-                    """, unsafe_allow_html=True)
-                    st.subheader("✨ Resume Improvement Suggestions")
-
-                    suggestions = []
-
-                    # Based on missing skills
-                    if missing:
-                        suggestions.append(f"Add these skills to your resume: {', '.join(missing[:4])}")
-
-                    # Based on score
-                    if score < 50:
-                        suggestions.append("Include at least 2–3 strong projects related to your domain")
-                        suggestions.append("Focus on building real-world applications")
-
-                    # General improvements
-                    suggestions.extend([
-                        "Use action verbs like Developed, Built, Optimized",
-                        "Add measurable results (e.g., improved accuracy by 20%)",
-                        "Keep resume concise (1 page if fresher)",
-                        "Highlight key technical skills clearly"
-                    ])
-
-                    # Display
-                    for s in suggestions:
-                        st.write(f"👉 {s}")
-                    # ------------------ ADD HERE ------------------
-
-                    SKILL_GUIDE = {
-                        "tensorflow": "Learn deep learning & build CNN projects",
-                        "nlp": "Work on chatbot or sentiment analysis",
-                        "pytorch": "Practice model building with PyTorch",
-                        "cnn": "Build image classification projects",
-                        "machine learning": "Practice regression & classification models",
-                        "statistics": "Focus on probability & distributions"
-                    }
-
-                    st.subheader("📚 Skill Improvement Guide")
-
-                    for skill in missing:
-                        suggestion = SKILL_GUIDE.get(skill.lower(), "Practice this skill")
-
-                        st.markdown(f"""
-                        <div style="
-                            background-color:#1e293b;
-                            padding:10px;
-                            margin:6px;
-                            border-radius:10px;
-                            color:#38bdf8;">
-                            👉 {skill}: {suggestion}
-                        </div>
-                        """, unsafe_allow_html=True)
-
-                # ✅ ALL BELOW MUST BE INSIDE if block
-
-                st.subheader("📊 Skill Match")
-                st.write("Score:", st.session_state.get("final_score", 0))
-
-                st.subheader("✅ You Have")
-                st.markdown("\n".join([f"• {m}" for m in matched]))
-
-                st.subheader("❌ Missing")
-                st.markdown("\n".join([f"• {m}" for m in missing]))
-
-                # Chart
-                st.subheader("📊 Skill Distribution")
-                data = {
-                    "Category": ["Matched", "Missing"],
-                    "Count": [len(matched), len(missing)]
-                }
-
-                fig = px.pie(
-                    values=data["Count"],
-                    names=data["Category"],
-                    title="Skill Match Overview",
-                    color=data["Category"],
-                    color_discrete_map={
-                        "Matched": "#22c55e",
-                        "Missing": "#ef4444"
-                    }
-                )
-                import plotly.io as pio
-                st.plotly_chart(fig, use_container_width=True)
-            
-                # Save pie chart as image
+    st.markdown("---")
+    
+    # Upload section
+    st.markdown("### 📄 Upload Your Resume")
+    uploaded_file = st.file_uploader("Choose a PDF file", type=["pdf"], key="resume_uploader")
+    
+    if uploaded_file is not None:
+        try:
+            with st.spinner("📄 Reading your resume..."):
+                resume_text = extract_text(uploaded_file)
+                st.success("✅ File uploaded successfully!")
+                st.session_state.resume_text = resume_text
+                st.session_state.uploaded = True
                 
-                report_data = {
-    "job_role": job_role,
-    "score": score,
-    "matched": matched,
-    "missing": missing
-}
-                # Report
-                report = f"""
-        JOB ROLE: {job_role}
-
-        MATCHED SKILLS:
-        {", ".join(matched)}
-
-        MISSING SKILLS:
-        {", ".join(missing)}
-
-        SCORE: {score}%
-        """
-            if st.button("📄 Generate PDF Report"):
-
-                if "final_score" not in st.session_state:
-                    st.warning("⚠️ Please analyze resume first")
+                # Generate and display resume brief
+                st.session_state.resume_brief = generate_resume_brief(resume_text)
+                
+        except Exception as e:
+            st.error(f"❌ Error reading PDF: {str(e)}")
+    
+    # Display resume brief if available
+    if st.session_state.get('uploaded', False) and st.session_state.resume_brief:
+        display_resume_brief(st.session_state.resume_brief)
+        
+        # Analysis button
+        st.markdown("---")
+        if not st.session_state.get('analyze', False):
+            if st.button("🚀 Continue to Detailed Analysis", use_container_width=True):
+                st.session_state.analyze = True
+                st.rerun()
+        else:
+            st.markdown("### 🎯 Job Role Analysis")
+            job_role = st.text_input("Enter your target job role:", placeholder="e.g., Data Scientist, ML Engineer, Web Developer")
+            
+            if job_role:
+                with st.spinner("🤖 Analyzing your resume..."):
+                    user_skills = extract_skills(st.session_state.resume_text)
+                    matched, missing, score = match_skills(user_skills, job_role)
+                
+                # Save to history
+                if not st.session_state.get('saved', False):
+                    save_history(st.session_state.username, job_role, score)
+                    st.session_state.saved = True
+                
+                # Display results
+                col_a, col_b = st.columns(2)
+                
+                with col_a:
+                    st.markdown(f"### ✅ Matched Skills ({len(matched)})")
+                    for skill in matched:
+                        st.write(f"✔ {skill}")
+                
+                with col_b:
+                    st.markdown(f"### ❌ Missing Skills ({len(missing)})")
+                    for skill in missing:
+                        st.write(f"✖ {skill}")
+                
+                # Score display
+                st.markdown("---")
+                st.markdown(f"## 🎯 Match Score: {score}%")
+                
+                # Progress bar
+                st.progress(score / 100)
+                
+                if score >= 80:
+                    st.success("🌟 Excellent match! Your resume is well-aligned with this role.")
+                elif score >= 60:
+                    st.info("📈 Good match! Add the missing skills to improve further.")
                 else:
-                    report_data = {
-                        "job_role": st.session_state.job_role,
-                        "score": st.session_state.final_score,
-                        "matched": st.session_state.matched,
-                        "missing": st.session_state.missing
-                    }
+                    st.warning("⚠️ Low match. Consider upskilling or targeting a different role.")
+                
+                # Reset analysis button
+                if st.button("🔄 Analyze Another Resume", use_container_width=True):
+                    st.session_state.analyze = False
+                    st.session_state.uploaded = False
+                    st.session_state.resume_brief = None
+                    st.rerun()
 
-                    create_pdf(report_data)
+# Logout button at bottom
+st.markdown("---")
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    if st.button("🚪 Logout", use_container_width=True):
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
+        st.rerun()
 
-                    with open("resume_report.pdf", "rb") as f:
-                        st.download_button(
-                            "⬇ Download Report",
-                            f,
-                            file_name="resume_report.pdf"
-                        )
-                # Projects
-                    st.subheader("💡 Suggested Projects")
-                    for p in PROJECTS.get(job_role.lower(), []):
-                        st.write("🚀", p)
+st.markdown("""
+<div style='text-align: center; padding: 20px; margin-top: 20px;'>
+    <p style='color: #666; font-size: 12px;'>© 2024 AI Resume Analyzer | Secure & Private</p>
+</div>
+""", unsafe_allow_html=True)
