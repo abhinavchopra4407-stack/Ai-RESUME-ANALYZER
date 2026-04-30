@@ -34,13 +34,13 @@ def save_history(username, job_role, score):
         
 
 def send_otp(email, otp):
-    sender_email = st.secrets["EMAIL"]
-    sender_password = st.secrets["PASSWORD"]
-
-    yag = yagmail.SMTP(sender_email, sender_password)
+    yag = yagmail.SMTP(
+        user=st.secrets["EMAIL"],
+        password=st.secrets["PASSWORD"]
+    )
 
     yag.send(
-        to=email,
+        to=email,  # ✅ dynamic
         subject="Your Login OTP",
         contents=f"Your OTP is: {otp}"
     )
