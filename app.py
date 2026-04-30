@@ -76,50 +76,45 @@ def send_otp(email, otp):
         return False
 # ---------------- LOGIN STATE -------------
 
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-
-import re
+if "otp_verified" not in st.session_state:
+    st.session_state.otp_verified = False
 
 def login_page():
     st.title("🔐 Login with OTP")
-
-    email = st.text_input("Enter your Email")
-
-    if st.button("Send OTP"):
-        if not email:
-            st.error("❌ Please enter email")
-        elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
-            st.error("❌ Invalid email format")
-        else:
-            otp = generate_otp()
-            st.session_state.otp = otp
-            st.session_state.email = email
-            
-            # Show OTP in UI for testing (remove in production)
-            st.info(f"📧 For testing, OTP is: {otp}")
-            
-            # Send actual email
-            success = send_otp(email, otp)
-            
-            if success:
-                st.success("✅ OTP sent to your email")
+    
+    email = st.text_input("📧 Enter your Email")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("📨 Send OTP", use_container_width=True):
+            if email and re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
+                otp = generate_otp()
+                st.session_state.otp = otp
+                st.session_state.email = email
+                
+                # Try to send email, show OTP on failure
+                if send_otp(email, otp):
+                    st.success("✅ OTP sent to your email!")
+                else:
+                    st.warning(f"⚠️ Could not send email. Your OTP is: **{otp}**")
             else:
-                st.warning("⚠️ Could not send email. Using on-screen OTP for demo.")
+                st.error("❌ Please enter a valid email")
+    
+    user_otp = st.text_input("🔑 Enter OTP", type="password")
+    
+    with col2:
+        if st.button("✅ Verify OTP", use_container_width=True):
+            if user_otp == st.session_state.get("otp"):
+                st.session_state.logged_in = True
+                st.session_state.username = email
+                st.session_state.otp_verified = True
+                st.success("✅ Login successful!")
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.error("❌ Invalid OTP")
 
-    user_otp = st.text_input("Enter OTP", type="password")
-
-    if st.button("Verify OTP"):
-        if user_otp == st.session_state.get("otp"):
-            st.session_state.logged_in = True
-            st.session_state.username = email
-            st.success("Login successful ✅")
-            time.sleep(1)
-            st.rerun()
-        else:
-            st.error("Invalid OTP ❌")
-
-# 🚨 MUST BE HERE
 if not st.session_state.logged_in:
     login_page()
     st.stop()
