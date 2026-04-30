@@ -49,26 +49,28 @@ def send_otp(email, otp):
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
+import re
+
 def login_page():
     st.title("🔐 Login with OTP")
 
-    email = st.text_input("Enter your Email")
+    email = st.text_input("Enter your Email")  # ✅ defined here
 
-if st.button("Send OTP"):
+    if st.button("Send OTP"):
 
-    if not email:
-        st.error("❌ Please enter email")
+        if not email:
+            st.error("❌ Please enter email")
 
-    elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
-        st.error("❌ Invalid email format")
+        elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
+            st.error("❌ Invalid email format")
 
-    else:
-        otp = generate_otp()
-        st.session_state.otp = otp
-        st.session_state.email = email
+        else:
+            otp = generate_otp()
+            st.session_state.otp = otp
+            st.session_state.email = email
 
-        send_otp(email, otp)
-        st.success("OTP sent to your email")
+            send_otp(email, otp)
+            st.success("OTP sent to your email")
 
     user_otp = st.text_input("Enter OTP")
 
