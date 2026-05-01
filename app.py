@@ -12,6 +12,22 @@ from datetime import datetime, timedelta
 import random
 import yagmail
 import os
+import pytz
+
+# ============= SET INDIAN TIMEZONE =============
+IST = pytz.timezone('Asia/Kolkata')
+
+def get_indian_time():
+    """Get current Indian time"""
+    return datetime.now(IST)
+
+def format_indian_time(dt):
+    """Format datetime in Indian timezone"""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = IST.localize(dt)
+    return dt.astimezone(IST)
 
 # ============= STEP 1: IMMEDIATE SESSION STATE INITIALIZATION =============
 if "logged_in" not in st.session_state:
@@ -64,7 +80,7 @@ def generate_otp():
     return str(random.randint(100000, 999999))
 
 def save_history(username, job_role, score):
-    """Save history to JSON file - persists across logouts"""
+    """Save history to JSON file with Indian time"""
     try:
         with open("history.json", "r") as f:
             data = json.load(f)
@@ -74,10 +90,13 @@ def save_history(username, job_role, score):
     if username not in data:
         data[username] = []
 
+    # Use Indian time for history entries
+    current_ist_time = get_indian_time()
+    
     data[username].append({
         "job_role": job_role,
         "score": score,
-        "date": datetime.now().strftime("%d-%m-%Y %H:%M")
+        "date": current_ist_time.strftime("%d-%m-%Y %I:%M:%S %p IST")
     })
 
     with open("history.json", "w") as f:
@@ -114,6 +133,9 @@ def send_otp(email, otp):
             password=st.secrets["PASSWORD"]
         )
         
+        current_ist = get_indian_time()
+        expiry_ist = current_ist + timedelta(minutes=5)
+        
         yag.send(
             to=email,
             subject="Your Login OTP - AI Resume Analyzer",
@@ -121,6 +143,8 @@ def send_otp(email, otp):
             Your OTP is: {otp}
             
             This OTP is valid for 5 minutes.
+            Generated at: {current_ist.strftime('%I:%M:%S %p IST')}
+            Expires at: {expiry_ist.strftime('%I:%M:%S %p IST')}
             
             Security Notice: Do not share this OTP with anyone.
             
@@ -133,16 +157,16 @@ def send_otp(email, otp):
         return False
 
 def is_otp_expired():
-    """Check if OTP has expired"""
+    """Check if OTP has expired using Indian time"""
     if st.session_state.otp_expiry is None:
         return True
-    return datetime.now() > st.session_state.otp_expiry
+    return get_indian_time() > st.session_state.otp_expiry
 
 def is_account_locked():
-    """Check if account is locked due to too many attempts"""
+    """Check if account is locked using Indian time"""
     if st.session_state.otp_locked_until is None:
         return False
-    return datetime.now() < st.session_state.otp_locked_until
+    return get_indian_time() < st.session_state.otp_locked_until
 
 def reset_otp_state():
     """Reset OTP related session state"""
@@ -163,9 +187,13 @@ def login_page():
     
     st.markdown("---")
     
+    # Show current Indian time
+    current_ist = get_indian_time()
+    st.info(f"🕐 Current Indian Time: {current_ist.strftime('%I:%M:%S %p IST')} | {current_ist.strftime('%d-%m-%Y')}")
+    
     # Check if account is locked
     if is_account_locked():
-        lock_remaining = (st.session_state.otp_locked_until - datetime.now()).seconds
+        lock_remaining = (st.session_state.otp_locked_until - get_indian_time()).seconds
         st.error(f"🔒 Too many failed attempts. Account locked for {lock_remaining // 60} minutes and {lock_remaining % 60} seconds.")
         st.stop()
     
@@ -185,7 +213,7 @@ def login_page():
             
             # Check resend cooldown (30 seconds)
             if st.session_state.last_otp_sent_time:
-                time_since_last = (datetime.now() - st.session_state.last_otp_sent_time).seconds
+                time_since_last = (get_indian_time() - st.session_state.last_otp_sent_time).seconds
                 if time_since_last < 30:
                     send_otp_disabled = True
                     button_text = f"⏳ Wait {30 - time_since_last}s"
@@ -202,14 +230,15 @@ def login_page():
                     else:
                         otp = generate_otp()
                         st.session_state.otp = otp
-                        st.session_state.otp_expiry = datetime.now() + timedelta(minutes=5)  # 5 minutes expiry
+                        # Set expiry to 5 minutes from now in Indian time
+                        st.session_state.otp_expiry = get_indian_time() + timedelta(minutes=5)
                         st.session_state.email = email
-                        st.session_state.last_otp_sent_time = datetime.now()
+                        st.session_state.last_otp_sent_time = get_indian_time()
                         st.session_state.otp_resend_attempts += 1
                         
                         if send_otp(email, otp):
                             st.success(f"✅ OTP sent successfully! Valid for 5 minutes.")
-                            st.info(f"⏰ OTP will expire at {st.session_state.otp_expiry.strftime('%H:%M:%S')}")
+                            st.info(f"⏰ OTP will expire at {st.session_state.otp_expiry.strftime('%I:%M:%S %p IST')}")
                         else:
                             st.error("❌ Failed to send OTP")
         
@@ -227,14 +256,14 @@ def login_page():
                     else:
                         # Check cooldown period
                         if st.session_state.last_otp_sent_time:
-                            time_since_last = (datetime.now() - st.session_state.last_otp_sent_time).seconds
+                            time_since_last = (get_indian_time() - st.session_state.last_otp_sent_time).seconds
                             if time_since_last < 30:
                                 st.error(f"❌ Please wait {30 - time_since_last} seconds before resending")
                             else:
                                 otp = generate_otp()
                                 st.session_state.otp = otp
-                                st.session_state.otp_expiry = datetime.now() + timedelta(minutes=5)
-                                st.session_state.last_otp_sent_time = datetime.now()
+                                st.session_state.otp_expiry = get_indian_time() + timedelta(minutes=5)
+                                st.session_state.last_otp_sent_time = get_indian_time()
                                 st.session_state.otp_resend_attempts += 1
                                 
                                 if send_otp(email, otp):
@@ -244,8 +273,8 @@ def login_page():
                         else:
                             otp = generate_otp()
                             st.session_state.otp = otp
-                            st.session_state.otp_expiry = datetime.now() + timedelta(minutes=5)
-                            st.session_state.last_otp_sent_time = datetime.now()
+                            st.session_state.otp_expiry = get_indian_time() + timedelta(minutes=5)
+                            st.session_state.last_otp_sent_time = get_indian_time()
                             st.session_state.otp_resend_attempts += 1
                             
                             if send_otp(email, otp):
@@ -257,9 +286,10 @@ def login_page():
         
         # Show OTP expiry time if OTP is sent
         if st.session_state.otp_expiry:
-            remaining_time = (st.session_state.otp_expiry - datetime.now()).seconds
+            remaining_time = (st.session_state.otp_expiry - get_indian_time()).seconds
             if remaining_time > 0:
-                st.info(f"⏰ OTP expires in {remaining_time // 60}:{remaining_time % 60:02d} minutes")
+                st.info(f"⏰ OTP expires in {remaining_time // 60}:{remaining_time % 60:02d} minutes (IST)")
+                st.progress(remaining_time / 300)  # 300 seconds = 5 minutes
             else:
                 st.warning("⚠️ OTP has expired. Please request a new one.")
         
@@ -276,7 +306,7 @@ def login_page():
                     # Check attempts limit (max 3 attempts)
                     if st.session_state.otp_attempts >= 3:
                         # Lock account for 15 minutes
-                        st.session_state.otp_locked_until = datetime.now() + timedelta(minutes=15)
+                        st.session_state.otp_locked_until = get_indian_time() + timedelta(minutes=15)
                         st.error("🔒 Too many failed attempts. Account locked for 15 minutes.")
                         st.rerun()
                     elif user_otp == st.session_state.get("otp"):
@@ -296,11 +326,11 @@ def login_page():
         st.markdown("""
         <div style='background: #1e293b; padding: 12px; border-radius: 10px; margin-top: 20px;'>
             <p style='color: #888; font-size: 12px; margin: 0;'>
-            🔒 <strong>Security Features:</strong><br>
+            🔒 <strong>Security Features (Indian Standard Time):</strong><br>
             • OTP expires in 5 minutes<br>
             • Max 3 verification attempts<br>
             • Max 5 OTP resend requests<br>
-            • Account locks after 3 failed attempts
+            • Account locks after 3 failed attempts for 15 minutes
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -441,7 +471,12 @@ def create_pdf(report_data):
     styles = getSampleStyleSheet()
     elements = []
 
+    # Add timestamp with Indian time
+    current_ist = get_indian_time()
+    
     elements.append(Paragraph("AI Resume Analysis Report", styles['Title']))
+    elements.append(Spacer(1, 10))
+    elements.append(Paragraph(f"Generated on: {current_ist.strftime('%d-%m-%Y %I:%M:%S %p IST')}", styles['Normal']))
     elements.append(Spacer(1, 20))
     elements.append(Paragraph(f"<b>Final Score:</b> {report_data['score']}%", styles['Heading2']))
     elements.append(Spacer(1, 15))
@@ -519,6 +554,10 @@ except:
 # Header with title only
 st.markdown("<h1 style='text-align:center;'>🤖 AI Resume Analyzer</h1>", unsafe_allow_html=True)
 st.caption("AI-powered resume insights to match your dream job 🚀")
+
+# Show current Indian time in main app
+current_ist = get_indian_time()
+st.info(f"🕐 Indian Standard Time (IST): {current_ist.strftime('%d-%m-%Y %I:%M:%S %p')}")
 
 # Create layout
 col1, col2, col3 = st.columns([1, 2, 1])
@@ -759,45 +798,5 @@ if uploaded_file is not None:
                     # PDF Report Generation
                     if st.button("📄 Generate PDF Report", use_container_width=True):
                         report_data = {
-                            "job_role": job_role,
-                            "score": final_score,
-                            "matched": matched,
-                            "missing": missing
-                        }
-                        create_pdf(report_data)
-                        with open("resume_report.pdf", "rb") as f:
-                            st.download_button(
-                                "⬇ Download Report",
-                                f,
-                                file_name="resume_report.pdf",
-                                use_container_width=True
-                            )
-                    
-                    # Suggested Projects
-                    st.subheader("💡 Suggested Projects")
-                    for p in PROJECTS.get(job_role.lower(), []):
-                        st.write("🚀", p)
-                    
-                    # Reset button
-                    if st.button("🔄 Analyze Another Resume", use_container_width=True):
-                        st.session_state.analyze = False
-                        st.session_state.saved = False
-                        st.rerun()
-
-# Show history at the bottom
-st.markdown("---")
-show_history(st.session_state.username)
-
-# Logout button at bottom
-col1, col2, col3 = st.columns([1, 2, 1])
-with col2:
-    if st.button("🚪 Logout", use_container_width=True):
-        st.session_state.logged_in = False
-        st.rerun()
-
-# Footer
-st.markdown("""
-<div style='text-align: center; padding: 20px; margin-top: 20px;'>
-    <p style='color: #666; font-size: 12px;'>© 2024 AI Resume Analyzer | Secure & Private</p>
-</div>
-""", unsafe_allow_html=True)
+                            "job_role": job_role.title(),
+                            "score": final_score,}
