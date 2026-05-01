@@ -5,21 +5,14 @@ import pandas as pd
 import plotly.express as px
 import base64
 import time
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, Spacer, PageBreak, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.lib.units import inch
-from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
-from reportlab.pdfgen import canvas
-from reportlab.platypus import KeepTogether
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
 import json
 from datetime import datetime, timedelta, timezone
 import random
 import yagmail
 import os
 import requests
-from io import BytesIO
 
 # ============= INDIAN TIMEZONE (UTC +5:30) =============
 def get_indian_time():
@@ -89,6 +82,7 @@ def generate_otp():
     return str(random.randint(100000, 999999))
 
 def save_history(username, job_role, score):
+    """Save history to JSON file with Indian time"""
     try:
         with open("history.json", "r") as f:
             data = json.load(f)
@@ -110,6 +104,7 @@ def save_history(username, job_role, score):
         json.dump(data, f, indent=4)
 
 def delete_history(username, index=None):
+    """Delete specific history entry or all history for a user"""
     try:
         with open("history.json", "r") as f:
             data = json.load(f)
@@ -163,16 +158,19 @@ def send_otp(email, otp):
         return False
 
 def is_otp_expired():
+    """Check if OTP has expired using Indian time"""
     if st.session_state.otp_expiry is None:
         return True
     return get_indian_time() > st.session_state.otp_expiry
 
 def is_account_locked():
+    """Check if account is locked using Indian time"""
     if st.session_state.otp_locked_until is None:
         return False
     return get_indian_time() < st.session_state.otp_locked_until
 
 def reset_otp_state():
+    """Reset OTP related session state"""
     st.session_state.otp = None
     st.session_state.otp_expiry = None
     st.session_state.otp_attempts = 0
@@ -180,7 +178,9 @@ def reset_otp_state():
     st.session_state.timer_running = False
 
 def get_chatgpt_response(prompt, context=""):
+    """Get response using OpenRouter API (Free)"""
     try:
+        # Check if OpenRouter API key is configured
         if "OPENROUTER_API_KEY" not in st.secrets:
             return get_fallback_response(prompt, context)
         
@@ -204,7 +204,7 @@ Please provide helpful, practical, and concise advice. Keep responses to 2-4 sen
 """
         
         data = {
-            "model": "qwen/qwen-2.5-7b-instruct:free",
+            "model": "qwen/qwen-2.5-7b-instruct:free",  # Free model on OpenRouter
             "messages": [
                 {"role": "system", "content": "You are a helpful resume and career advisor assistant."},
                 {"role": "user", "content": full_prompt}
@@ -232,6 +232,7 @@ Please provide helpful, practical, and concise advice. Keep responses to 2-4 sen
         return get_fallback_response(prompt, context)
 
 def get_resume_suggestions(resume_text, job_role):
+    """Get AI-powered resume suggestions using OpenRouter"""
     try:
         if "OPENROUTER_API_KEY" not in st.secrets:
             return get_fallback_suggestions(job_role)
@@ -262,7 +263,7 @@ Keep each suggestion concise.
         data = {
             "model": "qwen/qwen-2.5-7b-instruct:free",
             "messages": [
-                {"role": "system", "content": "You are an expert resume reviewer."},
+                {"role": "system", "content": "You are an expert resume reviewer. Provide specific, actionable advice."},
                 {"role": "user", "content": prompt}
             ],
             "max_tokens": 500,
@@ -286,6 +287,7 @@ Keep each suggestion concise.
         return get_fallback_suggestions(job_role)
 
 def get_fallback_response(prompt, context=""):
+    """Fallback responses when API is not available"""
     prompt_lower = prompt.lower()
     
     if "improve" in prompt_lower or "resume" in prompt_lower:
@@ -319,7 +321,16 @@ def get_fallback_response(prompt, context=""):
 • Create a full-stack web application
 • Develop an automation tool for daily tasks
 • Contribute to open-source on GitHub
-• Build a data analysis dashboard"""
+• Build a data analysis dashboard
+• Create a mobile app for a specific problem"""
+    
+    elif "interview" in prompt_lower:
+        return """🎤 **Interview Preparation Tips:**
+• Research the company thoroughly before interview
+• Practice common behavioral questions (STAR method)
+• Prepare questions to ask the interviewer
+• Review technical concepts in your domain
+• Do mock interviews with friends or online"""
     
     else:
         return """🤖 **I'm your AI Career Assistant!**
@@ -330,277 +341,41 @@ Ask me about:
 💪 Skill development strategies
 🚀 Project ideas for portfolio
 🎤 Interview preparation
-📊 Job search strategies"""
+📊 Job search strategies
+🔧 Technical skill advice
+
+Try asking a specific question for better results!"""
 
 def get_fallback_suggestions(job_role):
+    """Fallback suggestions when API is not available"""
     return f"""📝 **Resume Suggestions for {job_role} role:**
 
-1. **Add Missing Keywords:** Include role-specific keywords like programming languages, frameworks, and tools
+1. **Add Missing Keywords:** Include role-specific keywords like:
+   - Programming languages (Python, Java, JavaScript)
+   - Frameworks (React, Django, Spring Boot)
+   - Tools (Git, Docker, AWS)
 
-2. **Quantify Achievements:** Use numbers to show impact (e.g., "Improved performance by 40%")
+2. **Quantify Achievements:** Use numbers to show impact:
+   - "Improved performance by 40%"
+   - "Managed team of 5 developers"
+   - "Reduced costs by $50,000"
 
-3. **Use Strong Action Verbs:** Start bullets with words like Developed, Built, Optimized, Led
+3. **Use Strong Action Verbs:** Start bullets with:
+   - Developed, Built, Created, Designed
+   - Optimized, Improved, Enhanced
+   - Led, Managed, Coordinated
 
-4. **Add a Projects Section:** Include 2-3 relevant projects with descriptions and technologies used
+4. **Add a Projects Section:** Include 2-3 relevant projects with:
+   - Project name and description
+   - Technologies used
+   - Link to GitHub/live demo
 
-5. **Tailor Your Resume:** Customize for each application by matching keywords from job description
+5. **Tailor Your Resume:** Customize for each application:
+   - Match keywords from job description
+   - Highlight most relevant experience first
+   - Remove irrelevant information
 
 💡 **Pro Tip:** Always include metrics and results, not just responsibilities!"""
-
-def create_professional_pdf(report_data, user_email):
-    """Create a comprehensive professional PDF report"""
-    
-    # Create PDF in memory
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, 
-                           rightMargin=72, leftMargin=72,
-                           topMargin=72, bottomMargin=72)
-    
-    # Custom styles
-    styles = getSampleStyleSheet()
-    
-    # Title style
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=24,
-        textColor=colors.HexColor('#6366f1'),
-        alignment=TA_CENTER,
-        spaceAfter=30,
-        fontName='Helvetica-Bold'
-    )
-    
-    # Heading style
-    heading_style = ParagraphStyle(
-        'CustomHeading',
-        parent=styles['Heading2'],
-        fontSize=16,
-        textColor=colors.HexColor('#22c55e'),
-        spaceBefore=20,
-        spaceAfter=10,
-        fontName='Helvetica-Bold'
-    )
-    
-    # Subheading style
-    subheading_style = ParagraphStyle(
-        'CustomSubHeading',
-        parent=styles['Heading3'],
-        fontSize=14,
-        textColor=colors.HexColor('#6366f1'),
-        spaceBefore=15,
-        spaceAfter=8,
-        fontName='Helvetica-Bold'
-    )
-    
-    # Body text style
-    body_style = ParagraphStyle(
-        'CustomBody',
-        parent=styles['Normal'],
-        fontSize=11,
-        textColor=colors.black,
-        alignment=TA_JUSTIFY,
-        spaceAfter=6,
-        fontName='Helvetica'
-    )
-    
-    # Score style
-    score_style = ParagraphStyle(
-        'ScoreStyle',
-        parent=styles['Normal'],
-        fontSize=36,
-        textColor=colors.HexColor('#22c55e'),
-        alignment=TA_CENTER,
-        spaceAfter=20,
-        fontName='Helvetica-Bold'
-    )
-    
-    elements = []
-    
-    # ========== COVER PAGE ==========
-    # Title
-    elements.append(Paragraph("AI Resume Analysis Report", title_style))
-    elements.append(Spacer(1, 20))
-    
-    # AI Icon and decorative line
-    elements.append(Paragraph("🤖", ParagraphStyle('Icon', parent=styles['Normal'], fontSize=48, alignment=TA_CENTER)))
-    elements.append(Spacer(1, 10))
-    elements.append(Paragraph("Powered by Advanced AI Technology", body_style))
-    elements.append(Spacer(1, 30))
-    
-    # Score Box
-    elements.append(Paragraph(f"<b>Overall Match Score</b>", heading_style))
-    elements.append(Paragraph(f"{report_data['score']}%", score_style))
-    
-    # Score gauge visualization (text-based)
-    if report_data['score'] >= 80:
-        score_level = "🌟 Excellent"
-        score_color = "#22c55e"
-    elif report_data['score'] >= 60:
-        score_level = "📈 Good"
-        score_color = "#f59e0b"
-    else:
-        score_level = "⚠️ Needs Improvement"
-        score_color = "#ef4444"
-    
-    elements.append(Paragraph(f"<b>Rating:</b> <font color='{score_color}'>{score_level}</font>", body_style))
-    elements.append(Spacer(1, 20))
-    
-    # ========== REPORT INFORMATION ==========
-    current_ist = get_indian_time()
-    elements.append(Paragraph("Report Information", heading_style))
-    elements.append(Paragraph(f"<b>Generated on:</b> {current_ist.strftime('%d-%m-%Y')}", body_style))
-    elements.append(Paragraph(f"<b>Time:</b> {current_ist.strftime('%I:%M:%S %p IST')}", body_style))
-    elements.append(Paragraph(f"<b>User:</b> {user_email}", body_style))
-    elements.append(Paragraph(f"<b>Target Role:</b> {report_data['job_role'].title()}", body_style))
-    elements.append(Spacer(1, 20))
-    
-    # ========== SKILLS ANALYSIS ==========
-    elements.append(PageBreak())
-    elements.append(Paragraph("Skills Analysis", heading_style))
-    
-    # Matched Skills
-    elements.append(Paragraph("✅ Matched Skills", subheading_style))
-    if report_data['matched']:
-        for skill in report_data['matched']:
-            elements.append(Paragraph(f"• {skill}", body_style))
-    else:
-        elements.append(Paragraph("No matching skills found", body_style))
-    elements.append(Spacer(1, 15))
-    
-    # Missing Skills
-    elements.append(Paragraph("❌ Missing Skills", subheading_style))
-    if report_data['missing']:
-        for skill in report_data['missing']:
-            elements.append(Paragraph(f"• {skill} (Priority: High)", body_style))
-    else:
-        elements.append(Paragraph("Great! You have all required skills!", body_style))
-    
-    elements.append(Spacer(1, 20))
-    
-    # ========== SCORE BREAKDOWN ==========
-    elements.append(Paragraph("Score Breakdown", heading_style))
-    
-    # Score details
-    total_skills = len(report_data['matched']) + len(report_data['missing'])
-    skill_coverage = int((len(report_data['matched']) / total_skills) * 100) if total_skills > 0 else 0
-    
-    # Table for score breakdown
-    score_data = [
-        ["Metric", "Value", "Status"],
-        ["Skill Match", f"{report_data['score']}%", "✅" if report_data['score'] >= 60 else "⚠️"],
-        ["Skill Coverage", f"{skill_coverage}%", "✅" if skill_coverage >= 50 else "⚠️"],
-        ["Total Skills Analyzed", str(total_skills), "📊"],
-        ["Matched Skills", str(len(report_data['matched'])), "✅"],
-        ["Missing Skills", str(len(report_data['missing'])), "📚"]
-    ]
-    
-    t = Table(score_data, colWidths=[2*inch, 1.5*inch, 1.5*inch])
-    t.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (2, 0), colors.HexColor('#6366f1')),
-        ('TEXTCOLOR', (0, 0), (2, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (2, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (2, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (2, 0), 12),
-        ('BOTTOMPADDING', (0, 0), (2, 0), 12),
-        ('BACKGROUND', (0, 1), (2, -1), colors.beige),
-        ('GRID', (0, 0), (2, -1), 1, colors.grey),
-    ]))
-    elements.append(t)
-    elements.append(Spacer(1, 20))
-    
-    # ========== RESUME STRENGTH ANALYSIS ==========
-    elements.append(PageBreak())
-    elements.append(Paragraph("Resume Strength Analysis", heading_style))
-    
-    # Determine strength level
-    if report_data['score'] >= 80:
-        strength = "Excellent"
-        strength_color = "#22c55e"
-        recommendation = "Your resume is well-aligned with the target role. Focus on interview preparation."
-    elif report_data['score'] >= 60:
-        strength = "Good"
-        strength_color = "#f59e0b"
-        recommendation = "Your resume has good potential. Add missing skills to become an ideal candidate."
-    elif report_data['score'] >= 40:
-        strength = "Average"
-        strength_color = "#ef4444"
-        recommendation = "Significant improvement needed. Focus on building core skills and projects."
-    else:
-        strength = "Weak"
-        strength_color = "#dc2626"
-        recommendation = "Major overhaul needed. Consider upskilling and restructuring your resume."
-    
-    elements.append(Paragraph(f"<b>Strength Level:</b> <font color='{strength_color}'>{strength}</font>", body_style))
-    elements.append(Spacer(1, 10))
-    elements.append(Paragraph(f"<b>Recommendation:</b> {recommendation}", body_style))
-    elements.append(Spacer(1, 20))
-    
-    # ========== LEARNING PATH ==========
-    elements.append(Paragraph("Recommended Learning Path", heading_style))
-    
-    if report_data['missing']:
-        for idx, skill in enumerate(report_data['missing'][:7], 1):
-            elements.append(Paragraph(f"{idx}. <b>Learn {skill.title()}</b> through online courses and hands-on projects", body_style))
-            elements.append(Spacer(1, 5))
-    else:
-        elements.append(Paragraph("Congratulations! You have all required skills. Focus on advanced topics and interview preparation.", body_style))
-    
-    elements.append(Spacer(1, 20))
-    
-    # ========== IMPROVEMENT SUGGESTIONS ==========
-    elements.append(PageBreak())
-    elements.append(Paragraph("Actionable Improvement Suggestions", heading_style))
-    
-    suggestions = []
-    
-    if report_data['missing']:
-        suggestions.append(f"1. <b>Skill Development:</b> Prioritize learning {', '.join(report_data['missing'][:3])}")
-    
-    if report_data['score'] < 60:
-        suggestions.append("2. <b>Project Portfolio:</b> Build 2-3 strong projects demonstrating your skills")
-        suggestions.append("3. <b>Certifications:</b> Get relevant certifications from recognized platforms")
-    
-    suggestions.append("4. <b>Resume Format:</b> Use a clean, ATS-friendly format with clear section headers")
-    suggestions.append("5. <b>Quantify Achievements:</b> Add numbers and metrics to your accomplishments")
-    suggestions.append("6. <b>Action Verbs:</b> Start bullet points with strong action verbs")
-    suggestions.append("7. <b>Tailor Content:</b> Customize your resume for each job application")
-    
-    for suggestion in suggestions[:8]:
-        elements.append(Paragraph(suggestion, body_style))
-        elements.append(Spacer(1, 8))
-    
-    # ========== ADDITIONAL RESOURCES ==========
-    elements.append(PageBreak())
-    elements.append(Paragraph("Additional Resources & Tips", heading_style))
-    
-    resources = [
-        "📚 <b>Online Learning Platforms:</b> Coursera, Udemy, edX, NPTEL",
-        "💻 <b>Practice Platforms:</b> LeetCode, HackerRank, Kaggle",
-        "🔧 <b>Portfolio Hosting:</b> GitHub, GitLab, Personal Website",
-        "📝 <b>Resume Templates:</b> Overleaf, Canva, Novoresume",
-        "🌐 <b>Networking:</b> LinkedIn, GitHub, Stack Overflow",
-        "🎯 <b>Job Portals:</b> LinkedIn Jobs, Naukri, Indeed, AngelList"
-    ]
-    
-    for resource in resources:
-        elements.append(Paragraph(resource, body_style))
-        elements.append(Spacer(1, 10))
-    
-    # ========== FINAL NOTE ==========
-    elements.append(Spacer(1, 30))
-    elements.append(Paragraph("<b>Need More Help?</b>", subheading_style))
-    elements.append(Paragraph("Use the AI Career Assistant in the app for personalized advice and answers to your specific questions.", body_style))
-    elements.append(Spacer(1, 20))
-    
-    # Footer
-    elements.append(Spacer(1, 40))
-    elements.append(Paragraph(f"<hr/>", body_style))
-    elements.append(Paragraph(f"<font size=8><i>Generated by AI Resume Analyzer • {current_ist.strftime('%d-%m-%Y %I:%M:%S %p IST')}</i></font>", body_style))
-    
-    # Build PDF
-    doc.build(elements)
-    buffer.seek(0)
-    return buffer
 
 def login_page():
     st.markdown("""
@@ -788,13 +563,19 @@ def clean_education(text):
     return [l.strip() for l in lines if len(l.strip()) > 5]
 
 SKILL_DB = {
-    "data scientist": ["python", "machine learning", "pandas", "numpy", "sql", "statistics", "data visualization"],
-    "ml engineer": ["python", "tensorflow", "pytorch", "deep learning", "nlp", "cnn", "model deployment"],
-    "data analyst": ["excel", "sql", "power bi", "tableau", "python", "data visualization", "statistics"],
-    "web developer": ["html", "css", "javascript", "react", "node.js", "mongodb", "git"],
-    "frontend developer": ["html", "css", "javascript", "react", "bootstrap", "tailwind", "git"],
-    "backend developer": ["python", "java", "node.js", "sql", "api development", "database management", "docker"],
-    "full stack developer": ["html", "css", "javascript", "react", "node.js", "mongodb", "git", "rest api"],
+    "data scientist": ["python", "machine learning", "pandas", "numpy", "sql", "statistics"],
+    "ml engineer": ["python", "tensorflow", "pytorch", "deep learning", "nlp", "cnn"],
+    "data analyst": ["excel", "sql", "power bi", "tableau", "python", "data visualization"],
+    "web developer": ["html", "css", "javascript", "react", "node.js", "mongodb"],
+    "frontend developer": ["html", "css", "javascript", "react", "bootstrap"],
+    "backend developer": ["python", "java", "node.js", "sql", "api development"],
+    "full stack developer": ["html", "css", "javascript", "react", "node.js", "mongodb"],
+}
+
+PROJECTS = {
+    "data scientist": ["Customer Churn Prediction", "House Price Prediction", "Fraud Detection"],
+    "web developer": ["Portfolio Website", "E-commerce Site", "Blog Platform"],
+    "data analyst": ["Sales Dashboard", "Customer Segmentation", "Excel Analysis"],
 }
 
 def extract_skills(text):
@@ -812,6 +593,25 @@ def match_skills(user_skills, role):
     missing = [s for s in required if s not in user_skills]
     score = int((len(matched) / len(required)) * 100) if required else 0
     return matched, missing, score
+
+def create_pdf(report_data):
+    doc = SimpleDocTemplate("resume_report.pdf")
+    styles = getSampleStyleSheet()
+    elements = []
+    elements.append(Paragraph("AI Resume Analysis Report", styles['Title']))
+    elements.append(Spacer(1, 20))
+    elements.append(Paragraph(f"Score: {report_data['score']}%", styles['Heading2']))
+    elements.append(Spacer(1, 15))
+    elements.append(Paragraph(f"Role: {report_data['job_role']}", styles['Normal']))
+    elements.append(Spacer(1, 15))
+    elements.append(Paragraph("Matched Skills:", styles['Heading2']))
+    for skill in report_data['matched']:
+        elements.append(Paragraph(f"• {skill}", styles['Normal']))
+    elements.append(Spacer(1, 10))
+    elements.append(Paragraph("Missing Skills:", styles['Heading2']))
+    for skill in report_data['missing']:
+        elements.append(Paragraph(f"• {skill}", styles['Normal']))
+    doc.build(elements)
 
 # ============= STEP 4: CHECK LOGIN STATUS =============
 if not st.session_state.logged_in:
@@ -841,4 +641,157 @@ st.caption("AI-powered resume insights to match your dream job 🚀")
 main_col, chat_col = st.columns([2, 1])
 
 with main_col:
-    uploaded_file = st.file_uploader("📄 Upload Your Resume (PDF)", type=["pdf"])
+    uploaded_file = st.file_uploader("Upload Resume (PDF)", type=["pdf"], label_visibility="collapsed")
+    
+    if uploaded_file:
+        st.markdown(f"📄 **File:** {uploaded_file.name}")
+        
+        with st.spinner("Processing..."):
+            resume_text = extract_text(uploaded_file)
+            st.session_state.resume_text = resume_text
+        
+        st.success("✅ File uploaded!")
+        
+        if not st.session_state.analyze:
+            st.subheader("📄 Resume Preview")
+            st.text(resume_text[:500])
+            if st.button("🚀 Analyze Resume"):
+                st.session_state.analyze = True
+                st.rerun()
+        
+        else:
+            sections = extract_sections(resume_text)
+            job_role = st.text_input("🎯 Enter Job Role", placeholder="data scientist, web developer, etc.")
+            
+            col_left, col_right = st.columns(2)
+            with col_left:
+                st.subheader("🧠 Skills Found")
+                skills = clean_skills(sections["skills"])
+                for s in skills[:10]:
+                    st.write(f"• {s}")
+            
+            with col_right:
+                if job_role:
+                    with st.spinner("Analyzing..."):
+                        user_skills = extract_skills(resume_text)
+                        matched, missing, score = match_skills(user_skills, job_role)
+                        
+                        if not st.session_state.saved:
+                            save_history(st.session_state.username, job_role, score)
+                            st.session_state.saved = True
+                        
+                        # Store for chat
+                        st.session_state.current_job_role = job_role
+                        st.session_state.matched_skills = matched
+                        st.session_state.missing_skills = missing
+                        
+                        st.subheader("📊 Score")
+                        st.metric("Match Score", f"{score}%")
+                        
+                        st.subheader("✅ Matched Skills")
+                        for m in matched:
+                            st.write(f"✔ {m}")
+                        
+                        st.subheader("❌ Missing Skills")
+                        for m in missing:
+                            st.write(f"✖ {m}")
+                        
+                        if st.button("🤖 Get AI Suggestions"):
+                            with st.spinner("Getting AI suggestions from OpenRouter..."):
+                                suggestions = get_resume_suggestions(resume_text, job_role)
+                                st.markdown("### 💡 AI Suggestions")
+                                st.markdown(suggestions)
+                        
+                        if st.button("🔄 Analyze Another"):
+                            st.session_state.analyze = False
+                            st.session_state.saved = False
+                            st.rerun()
+
+with chat_col:
+    st.markdown("### 🤖 AI Career Assistant")
+    st.markdown("*Powered by OpenRouter (Free)*")
+    st.markdown("---")
+    
+    # Chat history display
+    chat_container = st.container()
+    with chat_container:
+        for msg in st.session_state.chat_history[-10:]:
+            if msg["role"] == "user":
+                st.markdown(f"**🙋 You:** {msg['content']}")
+            else:
+                st.markdown(f"**🤖 Assistant:** {msg['content']}")
+            st.markdown("---")
+    
+    # Quick questions
+    st.markdown("#### 📌 Quick Questions")
+    col_q1, col_q2 = st.columns(2)
+    
+    with col_q1:
+        if st.button("📝 Improve Resume", use_container_width=True):
+            with st.spinner("Getting AI response..."):
+                context = f"Target Role: {st.session_state.current_job_role}"
+                response = get_chatgpt_response("How can I improve my resume?", context)
+                st.session_state.chat_history.append({"role": "user", "content": "How can I improve my resume?"})
+                st.session_state.chat_history.append({"role": "assistant", "content": response})
+                st.rerun()
+        
+        if st.button("💪 Missing Skills", use_container_width=True):
+            with st.spinner("Getting AI response..."):
+                context = f"Missing skills: {', '.join(st.session_state.missing_skills)}"
+                response = get_chatgpt_response("How to learn my missing skills?", context)
+                st.session_state.chat_history.append({"role": "user", "content": "How to learn my missing skills?"})
+                st.session_state.chat_history.append({"role": "assistant", "content": response})
+                st.rerun()
+    
+    with col_q2:
+        if st.button("🎯 Career Path", use_container_width=True):
+            with st.spinner("Getting AI response..."):
+                context = f"Skills: {', '.join(st.session_state.matched_skills)}"
+                response = get_chatgpt_response("What career path should I follow?", context)
+                st.session_state.chat_history.append({"role": "user", "content": "What career path should I follow?"})
+                st.session_state.chat_history.append({"role": "assistant", "content": response})
+                st.rerun()
+        
+        if st.button("🚀 Project Ideas", use_container_width=True):
+            with st.spinner("Getting AI response..."):
+                context = f"Role: {st.session_state.current_job_role}"
+                response = get_chatgpt_response("What projects should I build?", context)
+                st.session_state.chat_history.append({"role": "user", "content": "What projects should I build?"})
+                st.session_state.chat_history.append({"role": "assistant", "content": response})
+                st.rerun()
+    
+    st.markdown("---")
+    
+    # Custom question input
+    user_question = st.text_input("💬 Ask a custom question:", placeholder="e.g., How to write a better summary?")
+    
+    if st.button("📨 Send Message", use_container_width=True):
+        if user_question:
+            with st.spinner("Getting AI response from OpenRouter..."):
+                context = f"Target Role: {st.session_state.current_job_role}\nMatched Skills: {', '.join(st.session_state.matched_skills)}\nMissing Skills: {', '.join(st.session_state.missing_skills)}"
+                response = get_chatgpt_response(user_question, context)
+                st.session_state.chat_history.append({"role": "user", "content": user_question})
+                st.session_state.chat_history.append({"role": "assistant", "content": response})
+                st.rerun()
+    
+    # Clear chat button
+    if st.button("🗑️ Clear Chat History", use_container_width=True):
+        st.session_state.chat_history = []
+        st.rerun()
+    
+    # API Status
+    if "OPENROUTER_API_KEY" in st.secrets:
+        st.caption("✅ AI Assistant Active (OpenRouter)")
+    else:
+        st.caption("⚠️ Demo Mode: Add OPENROUTER_API_KEY to secrets for AI responses")
+
+# History section
+st.markdown("---")
+show_history(st.session_state.username)
+
+# Logout
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    if st.button("🚪 Logout", use_container_width=True):
+        st.session_state.logged_in = False
+        st.rerun()
