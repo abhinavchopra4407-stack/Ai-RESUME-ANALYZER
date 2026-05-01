@@ -347,7 +347,7 @@ def get_fallback_suggestions(job_role):
 
 💡 **Pro Tip:** Always include metrics and results, not just responsibilities!"""
 
-def create_professional_pdf(report_data, resume_text, user_email):
+def create_professional_pdf(report_data, user_email):
     """Create a comprehensive professional PDF report"""
     
     # Create PDF in memory
@@ -432,8 +432,17 @@ def create_professional_pdf(report_data, resume_text, user_email):
     elements.append(Paragraph(f"{report_data['score']}%", score_style))
     
     # Score gauge visualization (text-based)
-    score_level = "🌟 Excellent" if report_data['score'] >= 80 else "📈 Good" if report_data['score'] >= 60 else "⚠️ Needs Improvement"
-    elements.append(Paragraph(f"<b>Rating:</b> {score_level}", body_style))
+    if report_data['score'] >= 80:
+        score_level = "🌟 Excellent"
+        score_color = "#22c55e"
+    elif report_data['score'] >= 60:
+        score_level = "📈 Good"
+        score_color = "#f59e0b"
+    else:
+        score_level = "⚠️ Needs Improvement"
+        score_color = "#ef4444"
+    
+    elements.append(Paragraph(f"<b>Rating:</b> <font color='{score_color}'>{score_level}</font>", body_style))
     elements.append(Spacer(1, 20))
     
     # ========== REPORT INFORMATION ==========
@@ -832,9 +841,4 @@ st.caption("AI-powered resume insights to match your dream job 🚀")
 main_col, chat_col = st.columns([2, 1])
 
 with main_col:
-    uploaded_file = st.file_uploader("Upload Resume (PDF)", type=["pdf"], label_visibility="collapsed")
-    
-    if uploaded_file:
-        st.markdown(f"📄 **File:** {uploaded_file.name}")
-        
-        with st.sp 
+    uploaded_file = st.file_uploader("📄 Upload Your Resume (PDF)", type=["pdf"])
