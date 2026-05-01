@@ -190,28 +190,24 @@ def login_page():
         st.error(f"🔒 Too many failed attempts. Account locked for {lock_remaining // 60} minutes and {lock_remaining % 60} seconds.")
         st.stop()
     
-    col1, col2, col3 = st.columns([1, 2, 1])
-    
-    with col2:
-        st.markdown("### 🔐 Login to Continue")
+    # Create a simple form for login
+    with st.form(key="login_form"):
+        email = st.text_input("📧 Email Address", placeholder="you@example.com")
         
-        email = st.text_input("📧 Email Address", placeholder="you@example.com", key="login_email")
+        # Two columns for Send OTP and Resend OTP
+        col1, col2 = st.columns(2)
         
-        # Send OTP and Resend OTP buttons in two columns
-        col_btn1, col_btn2 = st.columns(2)
-        
-        with col_btn1:
-            send_otp_disabled = False
-            button_text = "📨 Send OTP"
-            
-            # Check resend cooldown (30 seconds)
+        with col1:
+            send_disabled = False
+            send_text = "📨 Send OTP"
             if st.session_state.last_otp_sent_time:
-                time_since_last = (get_indian_time() - st.session_state.last_otp_sent_time).seconds
-                if time_since_last < 30:
-                    send_otp_disabled = True
-                    button_text = f"⏳ Wait {30 - time_since_last}s"
+                time_since = (get_indian_time() - st.session_state.last_otp_sent_time).seconds
+                if time_since < 30:
+                    send_disabled = True
+                    send_text = f"⏳ Wait {30 - time_since}s"
             
-            if st.button(button_text, use_container_width=True, disabled=send_otp_disabled):
+            send_clicked = st.form_submit_button(send_text, use_container_width=True, disabled=send_disabled)
+            if send_clicked:
                 if not email:
                     st.error("❌ Please enter email address")
                 elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
@@ -233,8 +229,9 @@ def login_page():
                         else:
                             st.error("❌ Failed to send OTP")
         
-        with col_btn2:
-            if st.button("🔄 Resend OTP", use_container_width=True):
+        with col2:
+            resend_clicked = st.form_submit_button("🔄 Resend OTP", use_container_width=True)
+            if resend_clicked:
                 if not email:
                     st.error("❌ Please enter email address first")
                 elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
@@ -244,9 +241,9 @@ def login_page():
                         st.error("❌ Maximum resend limit (5) reached. Please try again later.")
                     else:
                         if st.session_state.last_otp_sent_time:
-                            time_since_last = (get_indian_time() - st.session_state.last_otp_sent_time).seconds
-                            if time_since_last < 30:
-                                st.error(f"❌ Please wait {30 - time_since_last} seconds before resending")
+                            time_since = (get_indian_time() - st.session_state.last_otp_sent_time).seconds
+                            if time_since < 30:
+                                st.error(f"❌ Please wait {30 - time_since} seconds before resending")
                             else:
                                 otp = generate_otp()
                                 st.session_state.otp = otp
@@ -272,73 +269,57 @@ def login_page():
                             else:
                                 st.error("❌ Failed to send OTP")
         
-        # OTP Input Field
-        user_otp = st.text_input("🔑 Enter OTP", type="password", placeholder="Enter 6-digit code", key="login_otp")
+        # OTP Input
+        user_otp = st.text_input("🔑 Enter OTP", type="password", placeholder="Enter 6-digit code")
         
-        # Show OTP expiry timer if OTP is sent
+        # Show timer if OTP is active
         if st.session_state.otp_expiry and st.session_state.timer_running:
-            remaining_time = (st.session_state.otp_expiry - get_indian_time()).seconds
-            if remaining_time > 0:
-                minutes = remaining_time // 60
-                seconds = remaining_time % 60
-                
-                timer_html = f"""
-                <div style='text-align: center; margin: 15px 0;'>
-                    <div style='background: linear-gradient(135deg, #1e293b, #0f172a); padding: 15px; border-radius: 10px;'>
-                        <p style='color: white; margin: 0; font-size: 14px;'>⏰ OTP Expires In:</p>
-                        <p style='color: #22c55e; margin: 5px 0 0 0; font-size: 28px; font-weight: bold;'>
-                            {minutes:02d}:{seconds:02d}
-                        </p>
-                        <p style='color: #888; margin: 5px 0 0 0; font-size: 11px;'>minutes : seconds</p>
-                    </div>
-                </div>
-                """
-                st.markdown(timer_html, unsafe_allow_html=True)
-                
-                progress_value = remaining_time / 120
-                st.progress(progress_value if progress_value > 0 else 0)
-                
-                # Auto-refresh to update timer
-                if remaining_time > 0:
-                    time.sleep(1)
-                    st.rerun()
+            remaining = (st.session_state.otp_expiry - get_indian_time()).seconds
+            if remaining > 0:
+                mins = remaining // 60
+                secs = remaining % 60
+                st.info(f"⏰ OTP expires in: {mins:02d}:{secs:02d}")
+                st.progress(remaining / 120)
             else:
-                st.warning("⚠️ OTP has expired! Please click 'Resend OTP' to get a new one.")
+                st.warning("⚠️ OTP has expired! Please request a new one.")
                 st.session_state.timer_running = False
         
-        # VERIFY OTP BUTTON - This was missing!
-        col_verify1, col_verify2, col_verify3 = st.columns([1, 2, 1])
-        with col_verify2:
-            if st.button("✅ Verify OTP", use_container_width=True, type="primary"):
-                if not user_otp:
-                    st.error("❌ Please enter OTP")
+        # VERIFY BUTTON - This is the key part
+        st.markdown("---")
+        verify_clicked = st.form_submit_button("✅ Verify OTP", use_container_width=True, type="primary")
+        
+        if verify_clicked:
+            if not user_otp:
+                st.error("❌ Please enter OTP")
+            else:
+                if is_otp_expired():
+                    st.error("❌ OTP has expired. Please request a new OTP.")
+                    reset_otp_state()
+                    st.rerun()
                 else:
-                    if is_otp_expired():
-                        st.error("❌ OTP has expired. Please request a new OTP.")
+                    if st.session_state.otp_attempts >= 3:
+                        st.session_state.otp_locked_until = get_indian_time() + timedelta(minutes=15)
+                        st.error("🔒 Too many failed attempts. Account locked for 15 minutes.")
+                        st.rerun()
+                    elif user_otp == st.session_state.get("otp"):
+                        st.session_state.logged_in = True
+                        st.session_state.username = st.session_state.email
                         reset_otp_state()
+                        st.success("✅ Login successful! Redirecting...")
+                        time.sleep(1)
                         st.rerun()
                     else:
-                        if st.session_state.otp_attempts >= 3:
-                            st.session_state.otp_locked_until = get_indian_time() + timedelta(minutes=15)
-                            st.error("🔒 Too many failed attempts. Account locked for 15 minutes.")
-                            st.rerun()
-                        elif user_otp == st.session_state.get("otp"):
-                            st.session_state.logged_in = True
-                            st.session_state.username = st.session_state.email
-                            reset_otp_state()
-                            st.success("✅ Login successful! Redirecting...")
-                            time.sleep(1)
-                            st.rerun()
-                        else:
-                            st.session_state.otp_attempts += 1
-                            remaining_attempts = 3 - st.session_state.otp_attempts
-                            st.error(f"❌ Invalid OTP. {remaining_attempts} attempts remaining.")
+                        st.session_state.otp_attempts += 1
+                        remaining = 3 - st.session_state.otp_attempts
+                        st.error(f"❌ Invalid OTP. {remaining} attempts remaining.")
+        
+        st.markdown("---")
         
         # Security notice
         st.markdown("""
-        <div style='background: #1e293b; padding: 12px; border-radius: 10px; margin-top: 20px;'>
+        <div style='background: #1e293b; padding: 12px; border-radius: 10px;'>
             <p style='color: #888; font-size: 12px; margin: 0;'>
-            🔒 <strong>Security Features (Indian Standard Time):</strong><br>
+            🔒 <strong>Security Features:</strong><br>
             • ⏰ OTP expires in <strong style='color:#22c55e'>2 minutes</strong><br>
             • 🔢 Max <strong style='color:#22c55e'>3</strong> verification attempts<br>
             • 🔄 Max <strong style='color:#22c55e'>5</strong> OTP resend requests<br>
@@ -518,23 +499,8 @@ button {
     color: white !important;
     border-radius: 8px !important;
 }
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-thumb { background: #38bdf8; }
-.feedback-text {
-    color: #1a1a2e !important;
-    font-weight: 500;
-    line-height: 1.6;
-}
-.feedback-text p, .feedback-text div {
-    color: #1a1a2e !important;
-}
-.uploaded-filename {
-    background: #0f172a;
-    padding: 10px;
-    border-radius: 8px;
-    margin: 10px 0;
-    text-align: center;
-    border: 1px solid #22c55e;
+button[kind="primary"] {
+    background: linear-gradient(90deg, #22c55e, #6366f1) !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -545,30 +511,17 @@ try:
 except:
     pass
 
-# Header with title only
+# Header
 st.markdown("<h1 style='text-align:center;'>🤖 AI Resume Analyzer</h1>", unsafe_allow_html=True)
 st.caption("AI-powered resume insights to match your dream job 🚀")
 
-# Show current Indian time
 current_ist = get_indian_time()
 st.info(f"🕐 Indian Standard Time (IST): {current_ist.strftime('%d-%m-%Y %I:%M:%S %p')}")
 
-# Create layout
+# Upload section
 col1, col2, col3 = st.columns([1, 2, 1])
 
 with col2:
-    st.markdown("""
-    <style>
-    [data-testid="stFileUploader"] {
-        border: 2px dashed #6366f1;
-        padding: 30px;
-        border-radius: 15px;
-        text-align: center;
-        background: #0f172a;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    
     uploaded_file = st.file_uploader(
         "Upload Resume (PDF)",
         type=["pdf"],
@@ -578,7 +531,7 @@ with col2:
 if uploaded_file is not None:
     st.session_state.uploaded_file_name = uploaded_file.name
     st.markdown(f"""
-    <div class='uploaded-filename'>
+    <div style='background: #0f172a; padding: 10px; border-radius: 8px; margin: 10px 0; text-align: center; border: 1px solid #22c55e;'>
         📄 <strong>Uploaded File:</strong> {uploaded_file.name}
     </div>
     """, unsafe_allow_html=True)
@@ -659,11 +612,11 @@ if uploaded_file is not None:
                         st.session_state.saved = False
                         st.rerun()
 
-# Show history at the bottom
+# Show history
 st.markdown("---")
 show_history(st.session_state.username)
 
-# Logout button at bottom
+# Logout button
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
     if st.button("🚪 Logout", use_container_width=True):
