@@ -8,40 +8,16 @@ import time
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 import random
 import yagmail
 import os
-import pytz
-
-# ============= SET INDIAN TIMEZONE =============
-IST = pytz.timezone('Asia/Kolkata')
-
-def get_indian_time():
-    """Get current Indian time"""
-    return datetime.now(IST)
-
-def format_indian_time(dt):
-    """Format datetime in Indian timezone"""
-    if dt is None:
-        return None
-    if dt.tzinfo is None:
-        dt = IST.localize(dt)
-    return dt.astimezone(IST)
 
 # ============= STEP 1: IMMEDIATE SESSION STATE INITIALIZATION =============
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "otp" not in st.session_state:
     st.session_state.otp = None
-if "otp_expiry" not in st.session_state:
-    st.session_state.otp_expiry = None
-if "otp_attempts" not in st.session_state:
-    st.session_state.otp_attempts = 0
-if "otp_resend_attempts" not in st.session_state:
-    st.session_state.otp_resend_attempts = 0
-if "otp_locked_until" not in st.session_state:
-    st.session_state.otp_locked_until = None
 if "email" not in st.session_state:
     st.session_state.email = None
 if "username" not in st.session_state:
@@ -64,8 +40,8 @@ if "resume_text" not in st.session_state:
     st.session_state.resume_text = None
 if "uploaded_file_name" not in st.session_state:
     st.session_state.uploaded_file_name = None
-if "last_otp_sent_time" not in st.session_state:
-    st.session_state.last_otp_sent_time = None
+if "upload_animation" not in st.session_state:
+    st.session_state.upload_animation = False
 
 # ============= STEP 2: PAGE CONFIGURATION =============
 st.set_page_config(
@@ -80,7 +56,7 @@ def generate_otp():
     return str(random.randint(100000, 999999))
 
 def save_history(username, job_role, score):
-    """Save history to JSON file with Indian time"""
+    """Save history to JSON file - persists across logouts"""
     try:
         with open("history.json", "r") as f:
             data = json.load(f)
@@ -90,13 +66,10 @@ def save_history(username, job_role, score):
     if username not in data:
         data[username] = []
 
-    # Use Indian time for history entries
-    current_ist_time = get_indian_time()
-    
     data[username].append({
         "job_role": job_role,
         "score": score,
-        "date": current_ist_time.strftime("%d-%m-%Y %I:%M:%S %p IST")
+        "date": datetime.now().strftime("%d-%m-%Y %H:%M")
     })
 
     with open("history.json", "w") as f:
@@ -133,47 +106,30 @@ def send_otp(email, otp):
             password=st.secrets["PASSWORD"]
         )
         
-        current_ist = get_indian_time()
-        expiry_ist = current_ist + timedelta(minutes=5)
-        
         yag.send(
             to=email,
             subject="Your Login OTP - AI Resume Analyzer",
-            contents=f"""
-            Your OTP is: {otp}
-            
-            This OTP is valid for 5 minutes.
-            Generated at: {current_ist.strftime('%I:%M:%S %p IST')}
-            Expires at: {expiry_ist.strftime('%I:%M:%S %p IST')}
-            
-            Security Notice: Do not share this OTP with anyone.
-            
-            If you didn't request this, please ignore this email.
-            """
+            contents= f"""
+🔐 Verify Your Login
+
+Hi,
+
+Your One-Time Password (OTP) is:
+
+👉 {otp}
+
+⏳ This code is valid for 2 minutes
+🔒 Do not share this code with anyone
+
+If you didn’t request this, you can ignore this email.
+
+— AI Resume Analyzer
+"""
         )
         return True
     except Exception as e:
         st.error("❌ Failed to send OTP. Please try again.")
         return False
-
-def is_otp_expired():
-    """Check if OTP has expired using Indian time"""
-    if st.session_state.otp_expiry is None:
-        return True
-    return get_indian_time() > st.session_state.otp_expiry
-
-def is_account_locked():
-    """Check if account is locked using Indian time"""
-    if st.session_state.otp_locked_until is None:
-        return False
-    return get_indian_time() < st.session_state.otp_locked_until
-
-def reset_otp_state():
-    """Reset OTP related session state"""
-    st.session_state.otp = None
-    st.session_state.otp_expiry = None
-    st.session_state.otp_attempts = 0
-    st.session_state.otp_resend_attempts = 0
 
 def login_page():
     st.markdown("""
@@ -187,153 +143,39 @@ def login_page():
     
     st.markdown("---")
     
-    # Show current Indian time
-    current_ist = get_indian_time()
-    st.info(f"🕐 Current Indian Time: {current_ist.strftime('%I:%M:%S %p IST')} | {current_ist.strftime('%d-%m-%Y')}")
-    
-    # Check if account is locked
-    if is_account_locked():
-        lock_remaining = (st.session_state.otp_locked_until - get_indian_time()).seconds
-        st.error(f"🔒 Too many failed attempts. Account locked for {lock_remaining // 60} minutes and {lock_remaining % 60} seconds.")
-        st.stop()
-    
     col1, col2, col3 = st.columns([1, 2, 1])
     
     with col2:
         st.markdown("### 🔐 Login to Continue")
         
-        email = st.text_input("📧 Email Address", placeholder="you@example.com", key="login_email")
+        email = st.text_input("📧 Email Address", placeholder="you@example.com")
         
-        # Send OTP button with resend cooldown
-        col_btn1, col_btn2 = st.columns(2)
-        
-        with col_btn1:
-            send_otp_disabled = False
-            button_text = "📨 Send OTP"
-            
-            # Check resend cooldown (30 seconds)
-            if st.session_state.last_otp_sent_time:
-                time_since_last = (get_indian_time() - st.session_state.last_otp_sent_time).seconds
-                if time_since_last < 30:
-                    send_otp_disabled = True
-                    button_text = f"⏳ Wait {30 - time_since_last}s"
-            
-            if st.button(button_text, use_container_width=True, disabled=send_otp_disabled):
-                if not email:
-                    st.error("❌ Please enter email address")
-                elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
-                    st.error("❌ Please enter a valid email address")
-                else:
-                    # Check resend attempts limit (max 5 resends)
-                    if st.session_state.otp_resend_attempts >= 5:
-                        st.error("❌ Maximum resend limit reached. Please try again later.")
-                    else:
-                        otp = generate_otp()
-                        st.session_state.otp = otp
-                        # Set expiry to 5 minutes from now in Indian time
-                        st.session_state.otp_expiry = get_indian_time() + timedelta(minutes=5)
-                        st.session_state.email = email
-                        st.session_state.last_otp_sent_time = get_indian_time()
-                        st.session_state.otp_resend_attempts += 1
-                        
-                        if send_otp(email, otp):
-                            st.success(f"✅ OTP sent successfully! Valid for 5 minutes.")
-                            st.info(f"⏰ OTP will expire at {st.session_state.otp_expiry.strftime('%I:%M:%S %p IST')}")
-                        else:
-                            st.error("❌ Failed to send OTP")
-        
-        with col_btn2:
-            # Resend OTP button
-            if st.button("🔄 Resend OTP", use_container_width=True):
-                if not email:
-                    st.error("❌ Please enter email address first")
-                elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
-                    st.error("❌ Please enter a valid email address")
-                else:
-                    # Check resend attempts limit
-                    if st.session_state.otp_resend_attempts >= 5:
-                        st.error("❌ Maximum resend limit (5) reached. Please try again later.")
-                    else:
-                        # Check cooldown period
-                        if st.session_state.last_otp_sent_time:
-                            time_since_last = (get_indian_time() - st.session_state.last_otp_sent_time).seconds
-                            if time_since_last < 30:
-                                st.error(f"❌ Please wait {30 - time_since_last} seconds before resending")
-                            else:
-                                otp = generate_otp()
-                                st.session_state.otp = otp
-                                st.session_state.otp_expiry = get_indian_time() + timedelta(minutes=5)
-                                st.session_state.last_otp_sent_time = get_indian_time()
-                                st.session_state.otp_resend_attempts += 1
-                                
-                                if send_otp(email, otp):
-                                    st.success(f"✅ New OTP sent! Valid for 5 minutes.")
-                                else:
-                                    st.error("❌ Failed to send OTP")
-                        else:
-                            otp = generate_otp()
-                            st.session_state.otp = otp
-                            st.session_state.otp_expiry = get_indian_time() + timedelta(minutes=5)
-                            st.session_state.last_otp_sent_time = get_indian_time()
-                            st.session_state.otp_resend_attempts += 1
-                            
-                            if send_otp(email, otp):
-                                st.success(f"✅ OTP sent! Valid for 5 minutes.")
-                            else:
-                                st.error("❌ Failed to send OTP")
-        
-        user_otp = st.text_input("🔑 Enter OTP", type="password", placeholder="Enter 6-digit code", key="login_otp")
-        
-        # Show OTP expiry time if OTP is sent
-        if st.session_state.otp_expiry:
-            remaining_time = (st.session_state.otp_expiry - get_indian_time()).seconds
-            if remaining_time > 0:
-                st.info(f"⏰ OTP expires in {remaining_time // 60}:{remaining_time % 60:02d} minutes (IST)")
-                st.progress(remaining_time / 300)  # 300 seconds = 5 minutes
+        if st.button("📨 Send OTP", use_container_width=True):
+            if not email:
+                st.error("❌ Please enter email address")
+            elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
+                st.error("❌ Please enter a valid email address")
             else:
-                st.warning("⚠️ OTP has expired. Please request a new one.")
+                otp = generate_otp()
+                st.session_state.otp = otp
+                st.session_state.email = email
+                
+                if send_otp(email, otp):
+                    st.success("✅ OTP sent successfully to your email!")
         
-        # Verify OTP button
+        user_otp = st.text_input("🔑 Enter OTP", type="password", placeholder="Enter 6-digit code")
+        
         if st.button("✅ Verify & Login", use_container_width=True):
             if not user_otp:
                 st.error("❌ Please enter OTP")
+            elif user_otp == st.session_state.get("otp"):
+                st.session_state.logged_in = True
+                st.session_state.username = st.session_state.email
+                st.success("✅ Login successful! Redirecting...")
+                time.sleep(1)
+                st.rerun()
             else:
-                # Check if OTP is expired
-                if is_otp_expired():
-                    st.error("❌ OTP has expired. Please request a new OTP.")
-                    reset_otp_state()
-                else:
-                    # Check attempts limit (max 3 attempts)
-                    if st.session_state.otp_attempts >= 3:
-                        # Lock account for 15 minutes
-                        st.session_state.otp_locked_until = get_indian_time() + timedelta(minutes=15)
-                        st.error("🔒 Too many failed attempts. Account locked for 15 minutes.")
-                        st.rerun()
-                    elif user_otp == st.session_state.get("otp"):
-                        st.session_state.logged_in = True
-                        st.session_state.username = st.session_state.email
-                        # Reset OTP state on successful login
-                        reset_otp_state()
-                        st.success("✅ Login successful! Redirecting...")
-                        time.sleep(1)
-                        st.rerun()
-                    else:
-                        st.session_state.otp_attempts += 1
-                        remaining_attempts = 3 - st.session_state.otp_attempts
-                        st.error(f"❌ Invalid OTP. {remaining_attempts} attempts remaining.")
-        
-        # Security notice
-        st.markdown("""
-        <div style='background: #1e293b; padding: 12px; border-radius: 10px; margin-top: 20px;'>
-            <p style='color: #888; font-size: 12px; margin: 0;'>
-            🔒 <strong>Security Features (Indian Standard Time):</strong><br>
-            • OTP expires in 5 minutes<br>
-            • Max 3 verification attempts<br>
-            • Max 5 OTP resend requests<br>
-            • Account locks after 3 failed attempts for 15 minutes
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+                st.error("❌ Invalid OTP. Please try again.")
 
 def show_history(username):
     """Display user history with delete option"""
@@ -471,12 +313,7 @@ def create_pdf(report_data):
     styles = getSampleStyleSheet()
     elements = []
 
-    # Add timestamp with Indian time
-    current_ist = get_indian_time()
-    
     elements.append(Paragraph("AI Resume Analysis Report", styles['Title']))
-    elements.append(Spacer(1, 10))
-    elements.append(Paragraph(f"Generated on: {current_ist.strftime('%d-%m-%Y %I:%M:%S %p IST')}", styles['Normal']))
     elements.append(Spacer(1, 20))
     elements.append(Paragraph(f"<b>Final Score:</b> {report_data['score']}%", styles['Heading2']))
     elements.append(Spacer(1, 15))
@@ -496,6 +333,31 @@ def create_pdf(report_data):
     elements.append(Spacer(1, 20))
 
     doc.build(elements)
+
+def animated_upload():
+    """Create animation effect for upload"""
+    animation_html = """
+    <div style="text-align: center; padding: 20px;">
+        <div class="loader"></div>
+        <style>
+            .loader {
+                border: 4px solid #f3f3f3;
+                border-top: 4px solid #6366f1;
+                border-radius: 50%;
+                width: 40px;
+                height: 40px;
+                animation: spin 1s linear infinite;
+                margin: 0 auto;
+            }
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        </style>
+        <p style="color: white; margin-top: 10px;">Processing your resume...</p>
+    </div>
+    """
+    return animation_html
 
 # ============= STEP 4: CHECK LOGIN STATUS =============
 if not st.session_state.logged_in:
@@ -526,6 +388,7 @@ button {
 }
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-thumb { background: #38bdf8; }
+/* Dark text for feedback */
 .feedback-text {
     color: #1a1a2e !important;
     font-weight: 500;
@@ -534,6 +397,7 @@ button {
 .feedback-text p, .feedback-text div {
     color: #1a1a2e !important;
 }
+/* Readable filename */
 .uploaded-filename {
     background: #0f172a;
     padding: 10px;
@@ -551,15 +415,11 @@ try:
 except:
     pass
 
-# Header with title only
+# Header with title only (logout button moved to bottom)
 st.markdown("<h1 style='text-align:center;'>🤖 AI Resume Analyzer</h1>", unsafe_allow_html=True)
 st.caption("AI-powered resume insights to match your dream job 🚀")
 
-# Show current Indian time in main app
-current_ist = get_indian_time()
-st.info(f"🕐 Indian Standard Time (IST): {current_ist.strftime('%d-%m-%Y %I:%M:%S %p')}")
-
-# Create layout
+# Create layout without logout at top
 col1, col2, col3 = st.columns([1, 2, 1])
 
 with col2:
@@ -590,9 +450,9 @@ if uploaded_file is not None:
     </div>
     """, unsafe_allow_html=True)
     
-    # Process with spinner
+    # Animated processing
     with st.spinner("📄 Processing your resume..."):
-        time.sleep(1)
+        time.sleep(1)  # Small delay for animation effect
         resume_text = extract_text(uploaded_file)
         st.session_state.resume_text = resume_text
     
@@ -663,7 +523,7 @@ if uploaded_file is not None:
                     st.write(f"✔ Resume Strength: {resume_strength}%")
                     st.write(f"🎯 Final Score: {final_score}%")
                     
-                    # Store in session state
+                    # Store in session state for PDF generation
                     st.session_state.final_score = final_score
                     st.session_state.job_role = job_role
                     st.session_state.matched = matched
@@ -798,5 +658,45 @@ if uploaded_file is not None:
                     # PDF Report Generation
                     if st.button("📄 Generate PDF Report", use_container_width=True):
                         report_data = {
-                            "job_role": job_role.title(),
-                            "score": final_score,}
+                            "job_role": job_role,
+                            "score": final_score,
+                            "matched": matched,
+                            "missing": missing
+                        }
+                        create_pdf(report_data)
+                        with open("resume_report.pdf", "rb") as f:
+                            st.download_button(
+                                "⬇ Download Report",
+                                f,
+                                file_name="resume_report.pdf",
+                                use_container_width=True
+                            )
+                    
+                    # Suggested Projects
+                    st.subheader("💡 Suggested Projects")
+                    for p in PROJECTS.get(job_role.lower(), []):
+                        st.write("🚀", p)
+                    
+                    # Reset button
+                    if st.button("🔄 Analyze Another Resume", use_container_width=True):
+                        st.session_state.analyze = False
+                        st.session_state.saved = False
+                        st.rerun()
+
+# Show history at the bottom
+st.markdown("---")
+show_history(st.session_state.username)
+
+# Logout button at bottom
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    if st.button("🚪 Logout", use_container_width=True):
+        st.session_state.logged_in = False
+        st.rerun()
+
+# Footer
+st.markdown("""
+<div style='text-align: center; padding: 20px; margin-top: 20px;'>
+    <p style='color: #666; font-size: 12px;'>© 2024 AI Resume Analyzer | Secure & Private</p>
+</div>
+""", unsafe_allow_html=True)
