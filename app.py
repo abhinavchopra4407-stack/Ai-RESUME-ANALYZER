@@ -126,7 +126,7 @@ def send_otp(email, otp):
         )
         
         current_ist = get_indian_time()
-        expiry_ist = current_ist + timedelta(minutes=2)  # 2 minutes expiry
+        expiry_ist = current_ist + timedelta(minutes=2)
         
         yag.send(
             to=email,
@@ -197,7 +197,7 @@ def login_page():
         
         email = st.text_input("📧 Email Address", placeholder="you@example.com", key="login_email")
         
-        # Send OTP button with resend cooldown
+        # Send OTP and Resend OTP buttons in two columns
         col_btn1, col_btn2 = st.columns(2)
         
         with col_btn1:
@@ -217,13 +217,11 @@ def login_page():
                 elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
                     st.error("❌ Please enter a valid email address")
                 else:
-                    # Check resend attempts limit (max 5 resends)
                     if st.session_state.otp_resend_attempts >= 5:
                         st.error("❌ Maximum resend limit reached. Please try again later.")
                     else:
                         otp = generate_otp()
                         st.session_state.otp = otp
-                        # Set expiry to 2 minutes from now in Indian time
                         st.session_state.otp_expiry = get_indian_time() + timedelta(minutes=2)
                         st.session_state.email = email
                         st.session_state.last_otp_sent_time = get_indian_time()
@@ -232,23 +230,19 @@ def login_page():
                         
                         if send_otp(email, otp):
                             st.success(f"✅ OTP sent successfully! Valid for 2 minutes.")
-                            st.info(f"⏰ OTP will expire at {st.session_state.otp_expiry.strftime('%I:%M:%S %p IST')}")
                         else:
                             st.error("❌ Failed to send OTP")
         
         with col_btn2:
-            # Resend OTP button
             if st.button("🔄 Resend OTP", use_container_width=True):
                 if not email:
                     st.error("❌ Please enter email address first")
                 elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
                     st.error("❌ Please enter a valid email address")
                 else:
-                    # Check resend attempts limit
                     if st.session_state.otp_resend_attempts >= 5:
                         st.error("❌ Maximum resend limit (5) reached. Please try again later.")
                     else:
-                        # Check cooldown period
                         if st.session_state.last_otp_sent_time:
                             time_since_last = (get_indian_time() - st.session_state.last_otp_sent_time).seconds
                             if time_since_last < 30:
@@ -278,6 +272,7 @@ def login_page():
                             else:
                                 st.error("❌ Failed to send OTP")
         
+        # OTP Input Field
         user_otp = st.text_input("🔑 Enter OTP", type="password", placeholder="Enter 6-digit code", key="login_otp")
         
         # Show OTP expiry timer if OTP is sent
@@ -287,7 +282,6 @@ def login_page():
                 minutes = remaining_time // 60
                 seconds = remaining_time % 60
                 
-                # Create timer display with HTML/CSS
                 timer_html = f"""
                 <div style='text-align: center; margin: 15px 0;'>
                     <div style='background: linear-gradient(135deg, #1e293b, #0f172a); padding: 15px; border-radius: 10px;'>
@@ -301,8 +295,7 @@ def login_page():
                 """
                 st.markdown(timer_html, unsafe_allow_html=True)
                 
-                # Progress bar for timer
-                progress_value = remaining_time / 120  # 120 seconds = 2 minutes
+                progress_value = remaining_time / 120
                 st.progress(progress_value if progress_value > 0 else 0)
                 
                 # Auto-refresh to update timer
@@ -312,38 +305,34 @@ def login_page():
             else:
                 st.warning("⚠️ OTP has expired! Please click 'Resend OTP' to get a new one.")
                 st.session_state.timer_running = False
-                # Auto reset expired OTP
-                if st.session_state.otp is not None:
-                    reset_otp_state()
         
-        # Verify OTP button
-        if st.button("✅ Verify & Login", use_container_width=True):
-            if not user_otp:
-                st.error("❌ Please enter OTP")
-            else:
-                # Check if OTP is expired
-                if is_otp_expired():
-                    st.error("❌ OTP has expired. Please request a new OTP.")
-                    reset_otp_state()
+        # VERIFY OTP BUTTON - This was missing!
+        col_verify1, col_verify2, col_verify3 = st.columns([1, 2, 1])
+        with col_verify2:
+            if st.button("✅ Verify OTP", use_container_width=True, type="primary"):
+                if not user_otp:
+                    st.error("❌ Please enter OTP")
                 else:
-                    # Check attempts limit (max 3 attempts)
-                    if st.session_state.otp_attempts >= 3:
-                        # Lock account for 15 minutes
-                        st.session_state.otp_locked_until = get_indian_time() + timedelta(minutes=15)
-                        st.error("🔒 Too many failed attempts. Account locked for 15 minutes.")
-                        st.rerun()
-                    elif user_otp == st.session_state.get("otp"):
-                        st.session_state.logged_in = True
-                        st.session_state.username = st.session_state.email
-                        # Reset OTP state on successful login
+                    if is_otp_expired():
+                        st.error("❌ OTP has expired. Please request a new OTP.")
                         reset_otp_state()
-                        st.success("✅ Login successful! Redirecting...")
-                        time.sleep(1)
                         st.rerun()
                     else:
-                        st.session_state.otp_attempts += 1
-                        remaining_attempts = 3 - st.session_state.otp_attempts
-                        st.error(f"❌ Invalid OTP. {remaining_attempts} attempts remaining.")
+                        if st.session_state.otp_attempts >= 3:
+                            st.session_state.otp_locked_until = get_indian_time() + timedelta(minutes=15)
+                            st.error("🔒 Too many failed attempts. Account locked for 15 minutes.")
+                            st.rerun()
+                        elif user_otp == st.session_state.get("otp"):
+                            st.session_state.logged_in = True
+                            st.session_state.username = st.session_state.email
+                            reset_otp_state()
+                            st.success("✅ Login successful! Redirecting...")
+                            time.sleep(1)
+                            st.rerun()
+                        else:
+                            st.session_state.otp_attempts += 1
+                            remaining_attempts = 3 - st.session_state.otp_attempts
+                            st.error(f"❌ Invalid OTP. {remaining_attempts} attempts remaining.")
         
         # Security notice
         st.markdown("""
@@ -447,18 +436,6 @@ SKILL_DB = {
     "frontend developer": ["html", "css", "javascript", "react", "bootstrap", "ui/ux"],
     "backend developer": ["python", "java", "node.js", "sql", "api development", "database management"],
     "full stack developer": ["html", "css", "javascript", "react", "node.js", "mongodb", "api"],
-    "android developer": ["java", "kotlin", "android sdk", "firebase", "rest api"],
-    "ios developer": ["swift", "ios sdk", "xcode", "api integration"],
-    "software engineer": ["data structures", "algorithms", "java", "python", "oop", "problem solving"],
-    "devops engineer": ["docker", "kubernetes", "ci/cd", "aws", "linux", "shell scripting"],
-    "cloud engineer": ["aws", "azure", "gcp", "cloud architecture", "networking"],
-    "cyber security analyst": ["network security", "ethical hacking", "penetration testing", "cryptography"],
-    "ai engineer": ["python", "machine learning", "deep learning", "tensorflow", "nlp"],
-    "nlp engineer": ["python", "nlp", "text processing", "transformers", "machine learning"],
-    "computer vision engineer": ["python", "opencv", "image processing", "deep learning", "cnn"],
-    "game developer": ["unity", "c#", "game design", "graphics", "physics"],
-    "blockchain developer": ["solidity", "ethereum", "smart contracts", "web3", "cryptography"],
-    "qa engineer": ["testing", "selenium", "automation testing", "api testing", "bug tracking"]
 }
 
 PROJECTS = {
@@ -470,7 +447,6 @@ PROJECTS = {
     "frontend developer": ["React Portfolio", "Weather App (API based)", "Netflix UI Clone"],
     "backend developer": ["REST API using Flask/Django", "Authentication System", "Blog Backend with Database"],
     "full stack developer": ["Full Stack E-commerce App", "MERN Social Media App", "Job Portal Website"],
-    "software engineer": ["Library Management System", "Inventory Management System", "Online Code Compiler"],
 }
 
 def extract_skills(text):
@@ -511,10 +487,6 @@ def create_pdf(report_data):
     elements.append(Paragraph("<b>Missing Skills:</b>", styles['Heading2']))
     for skill in report_data['missing']:
         elements.append(Paragraph(f"• {skill}", styles['Normal']))
-    elements.append(Spacer(1, 20))
-    elements.append(Paragraph("<b>Recommended Learning Path:</b>", styles['Heading2']))
-    for skill in report_data['missing'][:5]:
-        elements.append(Paragraph(f"• Learn {skill} through projects and practice", styles['Normal']))
     elements.append(Spacer(1, 20))
 
     doc.build(elements)
@@ -577,7 +549,7 @@ except:
 st.markdown("<h1 style='text-align:center;'>🤖 AI Resume Analyzer</h1>", unsafe_allow_html=True)
 st.caption("AI-powered resume insights to match your dream job 🚀")
 
-# Show current Indian time in main app
+# Show current Indian time
 current_ist = get_indian_time()
 st.info(f"🕐 Indian Standard Time (IST): {current_ist.strftime('%d-%m-%Y %I:%M:%S %p')}")
 
@@ -604,7 +576,6 @@ with col2:
     )
 
 if uploaded_file is not None:
-    # Show readable filename
     st.session_state.uploaded_file_name = uploaded_file.name
     st.markdown(f"""
     <div class='uploaded-filename'>
@@ -612,7 +583,6 @@ if uploaded_file is not None:
     </div>
     """, unsafe_allow_html=True)
     
-    # Process with spinner
     with st.spinner("📄 Processing your resume..."):
         time.sleep(1)
         resume_text = extract_text(uploaded_file)
@@ -620,12 +590,6 @@ if uploaded_file is not None:
     
     st.success("✅ File uploaded successfully!")
     
-    try:
-        set_bg("Analyst.jpg")
-    except:
-        pass
-    
-    # Step 1: Preview and Analyze
     if not st.session_state.analyze:
         st.subheader("📄 Resume Preview")
         st.text(resume_text[:1000])
@@ -634,7 +598,6 @@ if uploaded_file is not None:
             st.session_state.analyze = True
             st.rerun()
     
-    # Step 2: Analysis
     else:
         sections = extract_sections(resume_text)
         
@@ -660,11 +623,10 @@ if uploaded_file is not None:
                     user_skills = extract_skills(resume_text)
                     matched, missing, score = match_skills(user_skills, job_role)
                     
-                    if "saved" not in st.session_state or not st.session_state.saved:
+                    if not st.session_state.get('saved', False):
                         save_history(st.session_state.username, job_role, score)
                         st.session_state.saved = True
                     
-                    # Role suggestions
                     st.subheader("🎯 Recommended Roles")
                     role_scores = {}
                     for role, skills_list in SKILL_DB.items():
@@ -674,7 +636,6 @@ if uploaded_file is not None:
                     top_roles = [r[0].title() for r in sorted_roles[:3]]
                     st.success(f"Best suited roles: {', '.join(top_roles)}")
                     
-                    # Score breakdown
                     st.subheader("📊 Score Breakdown")
                     skill_score = score
                     total_skills = len(matched) + len(missing)
@@ -685,92 +646,32 @@ if uploaded_file is not None:
                     st.write(f"✔ Resume Strength: {resume_strength}%")
                     st.write(f"🎯 Final Score: {final_score}%")
                     
-                    # Store in session state
-                    st.session_state.final_score = final_score
-                    st.session_state.job_role = job_role
-                    st.session_state.matched = matched
-                    st.session_state.missing = missing
+                    st.subheader("✅ You Have")
+                    for m in matched:
+                        st.write(f"• {m}")
                     
-                    # Resume Strength Analysis
-                    st.subheader("📊 Resume Strength Analysis")
-                    if score < 40:
-                        st.error("Your resume is weak for this role. Focus on building core skills and projects.")
-                    elif score < 70:
-                        st.warning("Your resume is average. Improve by adding more relevant skills and projects.")
-                    else:
-                        st.success("Your resume is strong and well aligned with the job role!")
+                    st.subheader("❌ Missing")
+                    for m in missing:
+                        st.write(f"• {m}")
                     
-                    if len(missing) > len(matched):
-                        st.info("You are missing more skills than you have. Focus on skill development.")
-                    else:
-                        st.info("Good skill coverage. Now focus on projects and real-world experience.")
-                    
-                    # Feedback with dark text
-                    st.subheader("📌 Feedback")
-                    if score < 40:
-                        feedback = f"""
-                        <div class='feedback-text' style='background-color:#ffe6e6; padding:15px; border-radius:12px; border-left:5px solid #ef4444;'>
-                            <p style='color:#1a1a2e !important; margin:0;'><strong>Your resume has limited matching skills for the role of {job_role}.</strong></p>
-                            <p style='color:#1a1a2e !important;'>You need to focus on building strong fundamentals and adding relevant projects.</p>
-                            <br>
-                            <p style='color:#1a1a2e !important;'><strong>👉 Start with:</strong></p>
-                            <ul style='color:#1a1a2e !important;'>
-                                <li>Learning core concepts</li>
-                                <li>Building 2–3 beginner projects</li>
-                                <li>Adding missing skills like {", ".join(missing[:3])}</li>
-                            </ul>
-                        </div>
-                        """
-                    elif score < 70:
-                        feedback = f"""
-                        <div class='feedback-text' style='background-color:#fff3e6; padding:15px; border-radius:12px; border-left:5px solid #f59e0b;'>
-                            <p style='color:#1a1a2e !important; margin:0;'><strong>Your profile is good but needs improvement for the role of {job_role}.</strong></p>
-                            <p style='color:#1a1a2e !important;'>You already have some relevant skills like {", ".join(matched[:3])}.</p>
-                            <br>
-                            <p style='color:#1a1a2e !important;'><strong>👉 To improve:</strong></p>
-                            <ul style='color:#1a1a2e !important;'>
-                                <li>Learn advanced tools like {", ".join(missing[:3])}</li>
-                                <li>Add real-world projects</li>
-                                <li>Strengthen your resume with achievements</li>
-                            </ul>
-                        </div>
-                        """
-                    else:
-                        feedback = f"""
-                        <div class='feedback-text' style='background-color:#e6ffe6; padding:15px; border-radius:12px; border-left:5px solid #22c55e;'>
-                            <p style='color:#1a1a2e !important; margin:0;'><strong>Excellent! Your resume is well aligned with the role of {job_role}.</strong></p>
-                            <p style='color:#1a1a2e !important;'>You have strong skills like {", ".join(matched[:3])}.</p>
-                            <br>
-                            <p style='color:#1a1a2e !important;'><strong>👉 To go further:</strong></p>
-                            <ul style='color:#1a1a2e !important;'>
-                                <li>Work on advanced projects</li>
-                                <li>Build a portfolio</li>
-                                <li>Prepare for interviews</li>
-                            </ul>
-                        </div>
-                        """
-                    
-                    st.markdown(feedback, unsafe_allow_html=True)
-                    
-                    # Resume Improvement Suggestions
-                    st.subheader("✨ Resume Improvement Suggestions")
-                    suggestions = []
-                    if missing:
-                        suggestions.append(f"Add these skills to your resume: {', '.join(missing[:4])}")
-                    if score < 50:
-                        suggestions.append("Include at least 2–3 strong projects related to your domain")
-                        suggestions.append("Focus on building real-world applications")
-                    suggestions.extend([
-                        "Use action verbs like Developed, Built, Optimized",
-                        "Add measurable results (e.g., improved accuracy by 20%)",
-                        "Keep resume concise (1 page if fresher)",
-                        "Highlight key technical skills clearly"
-                    ])
-                    for s in suggestions:
-                        st.write(f"👉 {s}")
-                    
-                    # Skill Improvement Guide
-                    SKILL_GUIDE = {
-                        "tensorflow": "Learn deep learning & build CNN projects",
-                        "nlp": "Work on chatbot or sentiment analysis",
-                        "pytorch": "Explore deep learning frameworks and build projects"}
+                    if st.button("🔄 Analyze Another Resume", use_container_width=True):
+                        st.session_state.analyze = False
+                        st.session_state.saved = False
+                        st.rerun()
+
+# Show history at the bottom
+st.markdown("---")
+show_history(st.session_state.username)
+
+# Logout button at bottom
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    if st.button("🚪 Logout", use_container_width=True):
+        st.session_state.logged_in = False
+        st.rerun()
+
+st.markdown("""
+<div style='text-align: center; padding: 20px; margin-top: 20px;'>
+    <p style='color: #666; font-size: 12px;'>© 2024 AI Resume Analyzer | Secure & Private</p>
+</div>
+""", unsafe_allow_html=True)
