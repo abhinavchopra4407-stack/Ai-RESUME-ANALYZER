@@ -835,5 +835,8 @@ with col2:
         st.session_state.logged_in = False
         st.rerun()
 
-st.markdown("""
-<div style='
+st.markdown(""
+<div style='text-align: center; padding: 20px; color: #888; font-size: 12px;'>
+    Developed by <a href='https://github.com/yourusername' target='_blank'>Your Name</a>
+</div>
+)
