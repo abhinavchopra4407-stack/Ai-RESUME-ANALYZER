@@ -8,7 +8,7 @@ import time
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import random
 import yagmail
 import os
@@ -18,6 +18,14 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "otp" not in st.session_state:
     st.session_state.otp = None
+if "otp_expiry" not in st.session_state:
+    st.session_state.otp_expiry = None
+if "otp_attempts" not in st.session_state:
+    st.session_state.otp_attempts = 0
+if "otp_resend_attempts" not in st.session_state:
+    st.session_state.otp_resend_attempts = 0
+if "otp_locked_until" not in st.session_state:
+    st.session_state.otp_locked_until = None
 if "email" not in st.session_state:
     st.session_state.email = None
 if "username" not in st.session_state:
@@ -40,8 +48,8 @@ if "resume_text" not in st.session_state:
     st.session_state.resume_text = None
 if "uploaded_file_name" not in st.session_state:
     st.session_state.uploaded_file_name = None
-if "upload_animation" not in st.session_state:
-    st.session_state.upload_animation = False
+if "last_otp_sent_time" not in st.session_state:
+    st.session_state.last_otp_sent_time = None
 
 # ============= STEP 2: PAGE CONFIGURATION =============
 st.set_page_config(
@@ -109,27 +117,39 @@ def send_otp(email, otp):
         yag.send(
             to=email,
             subject="Your Login OTP - AI Resume Analyzer",
-            contents= f"""
-🔐 Verify Your Login
-
-Hi,
-
-Your One-Time Password (OTP) is:
-
-👉 {otp}
-
-⏳ This code is valid for 2 minutes
-🔒 Do not share this code with anyone
-
-If you didn’t request this, you can ignore this email.
-
-— AI Resume Analyzer
-"""
+            contents=f"""
+            Your OTP is: {otp}
+            
+            This OTP is valid for 5 minutes.
+            
+            Security Notice: Do not share this OTP with anyone.
+            
+            If you didn't request this, please ignore this email.
+            """
         )
         return True
     except Exception as e:
         st.error("❌ Failed to send OTP. Please try again.")
         return False
+
+def is_otp_expired():
+    """Check if OTP has expired"""
+    if st.session_state.otp_expiry is None:
+        return True
+    return datetime.now() > st.session_state.otp_expiry
+
+def is_account_locked():
+    """Check if account is locked due to too many attempts"""
+    if st.session_state.otp_locked_until is None:
+        return False
+    return datetime.now() < st.session_state.otp_locked_until
+
+def reset_otp_state():
+    """Reset OTP related session state"""
+    st.session_state.otp = None
+    st.session_state.otp_expiry = None
+    st.session_state.otp_attempts = 0
+    st.session_state.otp_resend_attempts = 0
 
 def login_page():
     st.markdown("""
@@ -143,39 +163,147 @@ def login_page():
     
     st.markdown("---")
     
+    # Check if account is locked
+    if is_account_locked():
+        lock_remaining = (st.session_state.otp_locked_until - datetime.now()).seconds
+        st.error(f"🔒 Too many failed attempts. Account locked for {lock_remaining // 60} minutes and {lock_remaining % 60} seconds.")
+        st.stop()
+    
     col1, col2, col3 = st.columns([1, 2, 1])
     
     with col2:
         st.markdown("### 🔐 Login to Continue")
         
-        email = st.text_input("📧 Email Address", placeholder="you@example.com")
+        email = st.text_input("📧 Email Address", placeholder="you@example.com", key="login_email")
         
-        if st.button("📨 Send OTP", use_container_width=True):
-            if not email:
-                st.error("❌ Please enter email address")
-            elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
-                st.error("❌ Please enter a valid email address")
+        # Send OTP button with resend cooldown
+        col_btn1, col_btn2 = st.columns(2)
+        
+        with col_btn1:
+            send_otp_disabled = False
+            button_text = "📨 Send OTP"
+            
+            # Check resend cooldown (30 seconds)
+            if st.session_state.last_otp_sent_time:
+                time_since_last = (datetime.now() - st.session_state.last_otp_sent_time).seconds
+                if time_since_last < 30:
+                    send_otp_disabled = True
+                    button_text = f"⏳ Wait {30 - time_since_last}s"
+            
+            if st.button(button_text, use_container_width=True, disabled=send_otp_disabled):
+                if not email:
+                    st.error("❌ Please enter email address")
+                elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
+                    st.error("❌ Please enter a valid email address")
+                else:
+                    # Check resend attempts limit (max 5 resends)
+                    if st.session_state.otp_resend_attempts >= 5:
+                        st.error("❌ Maximum resend limit reached. Please try again later.")
+                    else:
+                        otp = generate_otp()
+                        st.session_state.otp = otp
+                        st.session_state.otp_expiry = datetime.now() + timedelta(minutes=5)  # 5 minutes expiry
+                        st.session_state.email = email
+                        st.session_state.last_otp_sent_time = datetime.now()
+                        st.session_state.otp_resend_attempts += 1
+                        
+                        if send_otp(email, otp):
+                            st.success(f"✅ OTP sent successfully! Valid for 5 minutes.")
+                            st.info(f"⏰ OTP will expire at {st.session_state.otp_expiry.strftime('%H:%M:%S')}")
+                        else:
+                            st.error("❌ Failed to send OTP")
+        
+        with col_btn2:
+            # Resend OTP button
+            if st.button("🔄 Resend OTP", use_container_width=True):
+                if not email:
+                    st.error("❌ Please enter email address first")
+                elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
+                    st.error("❌ Please enter a valid email address")
+                else:
+                    # Check resend attempts limit
+                    if st.session_state.otp_resend_attempts >= 5:
+                        st.error("❌ Maximum resend limit (5) reached. Please try again later.")
+                    else:
+                        # Check cooldown period
+                        if st.session_state.last_otp_sent_time:
+                            time_since_last = (datetime.now() - st.session_state.last_otp_sent_time).seconds
+                            if time_since_last < 30:
+                                st.error(f"❌ Please wait {30 - time_since_last} seconds before resending")
+                            else:
+                                otp = generate_otp()
+                                st.session_state.otp = otp
+                                st.session_state.otp_expiry = datetime.now() + timedelta(minutes=5)
+                                st.session_state.last_otp_sent_time = datetime.now()
+                                st.session_state.otp_resend_attempts += 1
+                                
+                                if send_otp(email, otp):
+                                    st.success(f"✅ New OTP sent! Valid for 5 minutes.")
+                                else:
+                                    st.error("❌ Failed to send OTP")
+                        else:
+                            otp = generate_otp()
+                            st.session_state.otp = otp
+                            st.session_state.otp_expiry = datetime.now() + timedelta(minutes=5)
+                            st.session_state.last_otp_sent_time = datetime.now()
+                            st.session_state.otp_resend_attempts += 1
+                            
+                            if send_otp(email, otp):
+                                st.success(f"✅ OTP sent! Valid for 5 minutes.")
+                            else:
+                                st.error("❌ Failed to send OTP")
+        
+        user_otp = st.text_input("🔑 Enter OTP", type="password", placeholder="Enter 6-digit code", key="login_otp")
+        
+        # Show OTP expiry time if OTP is sent
+        if st.session_state.otp_expiry:
+            remaining_time = (st.session_state.otp_expiry - datetime.now()).seconds
+            if remaining_time > 0:
+                st.info(f"⏰ OTP expires in {remaining_time // 60}:{remaining_time % 60:02d} minutes")
             else:
-                otp = generate_otp()
-                st.session_state.otp = otp
-                st.session_state.email = email
-                
-                if send_otp(email, otp):
-                    st.success("✅ OTP sent successfully to your email!")
+                st.warning("⚠️ OTP has expired. Please request a new one.")
         
-        user_otp = st.text_input("🔑 Enter OTP", type="password", placeholder="Enter 6-digit code")
-        
+        # Verify OTP button
         if st.button("✅ Verify & Login", use_container_width=True):
             if not user_otp:
                 st.error("❌ Please enter OTP")
-            elif user_otp == st.session_state.get("otp"):
-                st.session_state.logged_in = True
-                st.session_state.username = st.session_state.email
-                st.success("✅ Login successful! Redirecting...")
-                time.sleep(1)
-                st.rerun()
             else:
-                st.error("❌ Invalid OTP. Please try again.")
+                # Check if OTP is expired
+                if is_otp_expired():
+                    st.error("❌ OTP has expired. Please request a new OTP.")
+                    reset_otp_state()
+                else:
+                    # Check attempts limit (max 3 attempts)
+                    if st.session_state.otp_attempts >= 3:
+                        # Lock account for 15 minutes
+                        st.session_state.otp_locked_until = datetime.now() + timedelta(minutes=15)
+                        st.error("🔒 Too many failed attempts. Account locked for 15 minutes.")
+                        st.rerun()
+                    elif user_otp == st.session_state.get("otp"):
+                        st.session_state.logged_in = True
+                        st.session_state.username = st.session_state.email
+                        # Reset OTP state on successful login
+                        reset_otp_state()
+                        st.success("✅ Login successful! Redirecting...")
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.session_state.otp_attempts += 1
+                        remaining_attempts = 3 - st.session_state.otp_attempts
+                        st.error(f"❌ Invalid OTP. {remaining_attempts} attempts remaining.")
+        
+        # Security notice
+        st.markdown("""
+        <div style='background: #1e293b; padding: 12px; border-radius: 10px; margin-top: 20px;'>
+            <p style='color: #888; font-size: 12px; margin: 0;'>
+            🔒 <strong>Security Features:</strong><br>
+            • OTP expires in 5 minutes<br>
+            • Max 3 verification attempts<br>
+            • Max 5 OTP resend requests<br>
+            • Account locks after 3 failed attempts
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 
 def show_history(username):
     """Display user history with delete option"""
@@ -334,31 +462,6 @@ def create_pdf(report_data):
 
     doc.build(elements)
 
-def animated_upload():
-    """Create animation effect for upload"""
-    animation_html = """
-    <div style="text-align: center; padding: 20px;">
-        <div class="loader"></div>
-        <style>
-            .loader {
-                border: 4px solid #f3f3f3;
-                border-top: 4px solid #6366f1;
-                border-radius: 50%;
-                width: 40px;
-                height: 40px;
-                animation: spin 1s linear infinite;
-                margin: 0 auto;
-            }
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-        </style>
-        <p style="color: white; margin-top: 10px;">Processing your resume...</p>
-    </div>
-    """
-    return animation_html
-
 # ============= STEP 4: CHECK LOGIN STATUS =============
 if not st.session_state.logged_in:
     login_page()
@@ -388,7 +491,6 @@ button {
 }
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-thumb { background: #38bdf8; }
-/* Dark text for feedback */
 .feedback-text {
     color: #1a1a2e !important;
     font-weight: 500;
@@ -397,7 +499,6 @@ button {
 .feedback-text p, .feedback-text div {
     color: #1a1a2e !important;
 }
-/* Readable filename */
 .uploaded-filename {
     background: #0f172a;
     padding: 10px;
@@ -415,11 +516,11 @@ try:
 except:
     pass
 
-# Header with title only (logout button moved to bottom)
+# Header with title only
 st.markdown("<h1 style='text-align:center;'>🤖 AI Resume Analyzer</h1>", unsafe_allow_html=True)
 st.caption("AI-powered resume insights to match your dream job 🚀")
 
-# Create layout without logout at top
+# Create layout
 col1, col2, col3 = st.columns([1, 2, 1])
 
 with col2:
@@ -450,9 +551,9 @@ if uploaded_file is not None:
     </div>
     """, unsafe_allow_html=True)
     
-    # Animated processing
+    # Process with spinner
     with st.spinner("📄 Processing your resume..."):
-        time.sleep(1)  # Small delay for animation effect
+        time.sleep(1)
         resume_text = extract_text(uploaded_file)
         st.session_state.resume_text = resume_text
     
@@ -523,7 +624,7 @@ if uploaded_file is not None:
                     st.write(f"✔ Resume Strength: {resume_strength}%")
                     st.write(f"🎯 Final Score: {final_score}%")
                     
-                    # Store in session state for PDF generation
+                    # Store in session state
                     st.session_state.final_score = final_score
                     st.session_state.job_role = job_role
                     st.session_state.matched = matched
