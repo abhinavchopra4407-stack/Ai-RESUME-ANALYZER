@@ -402,26 +402,108 @@ if not st.session_state.logged_in:
     login_page()
     st.stop()
 
-# Custom CSS
+# Custom CSS - NO WHITE BOXES
 st.markdown("""
 <style>
-.stApp { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); }
-.block-container { background: rgba(15, 23, 42, 0.95); padding: 20px; border-radius: 20px; }
-h1, h2, h3, p, div, span, label { color: white !important; }
-.stButton > button { background: linear-gradient(90deg, #6366f1, #22c55e) !important; color: white !important; border-radius: 10px !important; transition: all 0.3s; }
-.stButton > button:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(99,102,241,0.4); }
+    /* Remove default white backgrounds */
+    .stApp {
+        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+    }
+    
+    .block-container {
+        background: transparent !important;
+        padding: 20px;
+    }
+    
+    /* Make all containers transparent */
+    div[data-testid="stVerticalBlock"] > div {
+        background: transparent !important;
+    }
+    
+    /* Style cards without white background */
+    .stMetric {
+        background: rgba(30, 41, 59, 0.5);
+        border-radius: 15px;
+        padding: 10px;
+        backdrop-filter: blur(10px);
+    }
+    
+    /* Remove white background from file uploader */
+    .stFileUploader > div {
+        background: rgba(30, 41, 59, 0.3) !important;
+        backdrop-filter: blur(10px);
+        border: 2px dashed #6366f1;
+        border-radius: 15px;
+    }
+    
+    /* Transparent chat containers */
+    .stMarkdown, .stTextInput, .stButton {
+        background: transparent !important;
+    }
+    
+    /* Make all text white */
+    .stMarkdown, .stMarkdown p, .stMarkdown div, .stMetric label {
+        color: white !important;
+    }
+    
+    /* Button styling */
+    .stButton > button {
+        background: linear-gradient(90deg, #6366f1, #22c55e) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 10px !important;
+        transition: all 0.3s;
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(99,102,241,0.4);
+    }
+    
+    /* Input fields dark */
+    .stTextInput > div > div > input {
+        background-color: #1e293b !important;
+        color: white !important;
+        border: 1px solid #334155 !important;
+        border-radius: 10px !important;
+    }
+    
+    /* Remove white box from chat history */
+    .stAlert, .stInfo, .stSuccess, .stWarning, .stError {
+        background: rgba(30, 41, 59, 0.5) !important;
+        backdrop-filter: blur(10px);
+        border: none !important;
+    }
+    
+    /* Hide default Streamlit white containers */
+    .element-container, .stMarkdown, .stVerticalBlock {
+        background: transparent !important;
+    }
+    
+    /* Metric cards */
+    [data-testid="stMetric"] {
+        background: rgba(30, 41, 59, 0.5);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        padding: 15px;
+    }
+    
+    /* File uploader text */
+    .stFileUploader label {
+        color: white !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# Header
-col1, col2, col3 = st.columns([2, 1, 1])
-with col1:
-    st.markdown(f"# 🤖 {APP_NAME}")
-    st.caption(APP_DESCRIPTION)
-with col3:
-    if st.button("🚪 Logout", use_container_width=True):
-        st.session_state.logged_in = False
-        st.rerun()
+# Header with title only (no logout button here)
+st.markdown(f"""
+<div style='text-align: center; padding: 20px;'>
+    <h1 style='font-size: 42px; background: linear-gradient(135deg, #6366f1, #22c55e); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 0;'>
+        🤖 {APP_NAME}
+    </h1>
+    <p style='color: #aaa; font-size: 16px;'>{APP_DESCRIPTION}</p>
+</div>
+""", unsafe_allow_html=True)
 
 # Stats Row
 col1, col2, col3, col4 = st.columns(4)
@@ -479,8 +561,8 @@ with main_col:
                     col1, col2, col3 = st.columns(3)
                     with col2:
                         st.markdown(f"""
-                        <div style='text-align: center; padding: 20px; background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 20px;'>
-                            <h2 style='margin: 0;'>Match Score</h2>
+                        <div style='text-align: center; padding: 20px; background: rgba(30, 41, 59, 0.5); backdrop-filter: blur(10px); border-radius: 20px;'>
+                            <h2 style='margin: 0; color: white;'>Match Score</h2>
                             <h1 style='font-size: 64px; margin: 0; color: #22c55e;'>{score}%</h1>
                         </div>
                         """, unsafe_allow_html=True)
@@ -516,41 +598,51 @@ with chat_col:
     st.markdown("---")
     
     # Chat History
-    for msg in st.session_state.chat_history[-8:]:
-        if msg["role"] == "user":
-            st.markdown(f"**🙋 You:** {msg['content']}")
-        else:
-            st.markdown(f"**🤖 AI:** {msg['content']}")
-        st.markdown("---")
+    chat_container = st.container()
+    with chat_container:
+        for msg in st.session_state.chat_history[-8:]:
+            if msg["role"] == "user":
+                st.markdown(f"**🙋 You:** {msg['content']}")
+            else:
+                st.markdown(f"**🤖 AI:** {msg['content']}")
+            st.markdown("---")
     
     # Quick Questions
-    st.markdown("#### Quick Questions")
-    q1 = st.button("📝 Improve Resume", use_container_width=True)
-    q2 = st.button("🎯 Career Path", use_container_width=True)
-    q3 = st.button("💪 Missing Skills", use_container_width=True)
+    st.markdown("#### 📌 Quick Questions")
+    col_q1, col_q2 = st.columns(2)
     
-    if q1:
-        ctx = f"Target: {st.session_state.current_job_role}"
-        resp = get_ai_response("How to improve resume?", ctx)
-        st.session_state.chat_history.append({"role": "user", "content": "How to improve my resume?"})
-        st.session_state.chat_history.append({"role": "assistant", "content": resp})
-        st.rerun()
+    with col_q1:
+        if st.button("📝 Improve Resume", use_container_width=True):
+            ctx = f"Target: {st.session_state.current_job_role}"
+            resp = get_ai_response("How to improve resume?", ctx)
+            st.session_state.chat_history.append({"role": "user", "content": "How to improve my resume?"})
+            st.session_state.chat_history.append({"role": "assistant", "content": resp})
+            st.rerun()
+        
+        if st.button("💪 Missing Skills", use_container_width=True):
+            resp = get_ai_response("How to learn missing skills?", f"Missing: {', '.join(st.session_state.missing_skills)}")
+            st.session_state.chat_history.append({"role": "user", "content": "How to learn missing skills?"})
+            st.session_state.chat_history.append({"role": "assistant", "content": resp})
+            st.rerun()
     
-    if q2:
-        resp = get_ai_response("Career advice", f"Skills: {', '.join(st.session_state.matched_skills)}")
-        st.session_state.chat_history.append({"role": "user", "content": "Career path advice?"})
-        st.session_state.chat_history.append({"role": "assistant", "content": resp})
-        st.rerun()
+    with col_q2:
+        if st.button("🎯 Career Path", use_container_width=True):
+            resp = get_ai_response("Career advice", f"Skills: {', '.join(st.session_state.matched_skills)}")
+            st.session_state.chat_history.append({"role": "user", "content": "Career path advice?"})
+            st.session_state.chat_history.append({"role": "assistant", "content": resp})
+            st.rerun()
+        
+        if st.button("🚀 Project Ideas", use_container_width=True):
+            resp = get_ai_response("Project ideas for portfolio", f"Role: {st.session_state.current_job_role}")
+            st.session_state.chat_history.append({"role": "user", "content": "Project ideas?"})
+            st.session_state.chat_history.append({"role": "assistant", "content": resp})
+            st.rerun()
     
-    if q3:
-        resp = get_ai_response("How to learn missing skills?", f"Missing: {', '.join(st.session_state.missing_skills)}")
-        st.session_state.chat_history.append({"role": "user", "content": "How to learn missing skills?"})
-        st.session_state.chat_history.append({"role": "assistant", "content": resp})
-        st.rerun()
+    st.markdown("---")
     
     # Custom Question
-    user_q = st.text_input("Ask anything...", placeholder="e.g., Best projects for beginners?")
-    if st.button("Send", use_container_width=True) and user_q:
+    user_q = st.text_input("💬 Ask anything...", placeholder="e.g., Best projects for beginners?")
+    if st.button("📨 Send", use_container_width=True) and user_q:
         resp = get_ai_response(user_q, f"Role: {st.session_state.current_job_role}")
         st.session_state.chat_history.append({"role": "user", "content": user_q})
         st.session_state.chat_history.append({"role": "assistant", "content": resp})
@@ -576,22 +668,29 @@ if st.session_state.username in hist_data and hist_data[st.session_state.usernam
         with col1:
             st.write(f"💼 {item['job_role']} | 🎯 {item['score']}% | 🕒 {item['date']}")
         with col2:
-            if st.button(f"Delete", key=f"del_{idx}"):
+            if st.button(f"🗑️", key=f"del_{idx}"):
                 original_idx = len(hist_data[st.session_state.username]) - 1 - idx
                 delete_history(st.session_state.username, original_idx)
                 st.rerun()
 else:
-    st.info("No analysis history yet. Upload a resume to get started!")
+    st.info("📭 No analysis history yet. Upload a resume to get started!")
+
+# ============= LOGOUT BUTTON AT BOTTOM =============
+st.markdown("---")
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    if st.button("🚪 Logout", use_container_width=True):
+        st.session_state.logged_in = False
+        st.rerun()
 
 # Footer
-st.markdown("---")
 st.markdown(f"""
-<div style='text-align: center; padding: 20px;'>
+<div style='text-align: center; padding: 20px; margin-top: 20px;'>
     <p style='color: #666; font-size: 12px;'>
         © 2025 {APP_NAME} v{VERSION} | Secure & Private | Made with ❤️ for Job Seekers
     </p>
     <p style='color: #444; font-size: 10px;'>
-        🚀 Ready for LinkedIn | Features: AI Analysis • PDF Reports • Career Assistant • OTP Security
+        🚀 Features: AI Analysis • PDF Reports • Career Assistant • OTP Security
     </p>
 </div>
 """, unsafe_allow_html=True)
