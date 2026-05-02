@@ -544,7 +544,7 @@ with main_col:
         
         if not st.session_state.analyze:
             st.subheader("📄 Resume Preview")
-            st.text_area("Preview", resume_text[:500], height=200, disabled=True)
+            st.text_area("Preview", st.session_state.resume_text[:500], height=200, disabled=True)
             
             if st.button("🚀 Start Analysis", use_container_width=True):
                 st.session_state.analyze = True
@@ -560,7 +560,7 @@ with main_col:
             if job_role:
                 with st.spinner("🔍 Analyzing your resume against the job role..."):
                     time.sleep(1)
-                    user_skills = extract_skills(resume_text)
+                    user_skills = extract_skills(st.session_state.resume_text)
                     matched, missing, score = match_skills(user_skills, job_role)
                     
                     if not st.session_state.saved:
@@ -572,7 +572,6 @@ with main_col:
                     st.session_state.current_job_role = job_role
                     st.session_state.matched_skills = matched
                     st.session_state.missing_skills = missing
-                    st.session_state.final_score = score
                     
                     # Score Display
                     col1, col2, col3 = st.columns(3)
@@ -737,3 +736,4 @@ with col2:
     if st.button("🚪 Logout", use_container_width=True):
         with st.spinner("🚪 Logging out..."):
             time.sleep(0.5)
+            st.session_state
