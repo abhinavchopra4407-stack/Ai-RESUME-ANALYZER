@@ -24,7 +24,6 @@ import hashlib
 VERSION = "2.0.0"
 APP_NAME = "AI Resume Analyzer"
 APP_DESCRIPTION = "AI-powered resume insights to match your dream job"
-SUPPORT_EMAIL = "support@resumeanalyzer.com"
 
 # ============= INDIAN TIMEZONE =============
 def get_indian_time():
@@ -101,7 +100,6 @@ def delete_history(username, index=None):
 def send_otp(email, otp):
     try:
         if "EMAIL" not in st.secrets or "PASSWORD" not in st.secrets:
-            st.warning("⚠️ Demo Mode: OTP would be sent to your email")
             return True
             
         yag = yagmail.SMTP(user=st.secrets["EMAIL"], password=st.secrets["PASSWORD"])
@@ -121,7 +119,6 @@ def send_otp(email, otp):
         )
         return True
     except:
-        st.warning("⚠️ Demo Mode - Check terminal for OTP")
         print(f"📧 OTP for {email}: {otp}")
         return True
 
@@ -143,7 +140,6 @@ def reset_otp_state():
     st.session_state.timer_running = False
 
 def get_ai_response(prompt, context=""):
-    """Get AI response using OpenRouter (Free)"""
     try:
         if "OPENROUTER_API_KEY" in st.secrets:
             headers = {
@@ -167,7 +163,6 @@ def get_ai_response(prompt, context=""):
             if response.status_code == 200:
                 return response.json()["choices"][0]["message"]["content"]
         
-        # Fallback responses
         return get_fallback_response(prompt, context)
     except:
         return get_fallback_response(prompt, context)
@@ -175,13 +170,15 @@ def get_ai_response(prompt, context=""):
 def get_fallback_response(prompt, context=""):
     prompt_lower = prompt.lower()
     if "improve" in prompt_lower or "resume" in prompt_lower:
-        return "🎯 **Quick Resume Tips:**\n• Use strong action verbs\n• Quantify achievements\n• Tailor to job description\n• Keep it concise (1-2 pages)"
+        return "🎯 **Quick Resume Tips:**\n• Use strong action verbs (Developed, Built, Optimized)\n• Quantify achievements with numbers\n• Tailor to job description keywords\n• Keep it concise (1-2 pages)\n• Highlight most relevant skills first"
     elif "career" in prompt_lower:
-        return "🚀 **Career Advice:** Focus on building in-demand skills, get certifications, build a portfolio, network on LinkedIn."
+        return "🚀 **Career Advice:**\n• Build in-demand skills\n• Get relevant certifications\n• Create portfolio projects\n• Network on LinkedIn\n• Apply to 10+ jobs daily"
     elif "skill" in prompt_lower:
-        return "💪 **Skill Development:** Take online courses, build projects, contribute to open-source, practice daily."
+        return "💪 **Skill Development:**\n• Take online courses (Coursera, Udemy)\n• Build small projects daily\n• Contribute to open-source\n• Practice on LeetCode/HackerRank\n• Join study groups"
+    elif "project" in prompt_lower:
+        return "🚀 **Project Ideas:**\n• Portfolio website\n• Full-stack web app\n• Data analysis dashboard\n• Mobile app\n• Automation tool\n• API integration project"
     else:
-        return "💡 **I'm your AI Career Assistant!** Ask me about resume improvement, career paths, skill development, or project ideas."
+        return "💡 **I'm your AI Career Assistant!**\n\nAsk me about:\n📝 Resume improvement\n🎯 Career paths\n💪 Skill development\n🚀 Project ideas\n🎤 Interview prep\n📊 Job search strategies"
 
 def create_professional_pdf(report_data, user_email):
     buffer = BytesIO()
@@ -280,9 +277,15 @@ def extract_text(file):
 
 def extract_skills(text):
     skills_db = {
-        "data scientist": ["python", "machine learning", "pandas", "numpy", "sql", "statistics"],
-        "web developer": ["html", "css", "javascript", "react", "node.js", "mongodb"],
-        "data analyst": ["excel", "sql", "power bi", "tableau", "python"],
+        "data scientist": ["python", "machine learning", "pandas", "numpy", "sql", "statistics", "tensorflow", "keras"],
+        "web developer": ["html", "css", "javascript", "react", "node.js", "mongodb", "express", "git"],
+        "data analyst": ["excel", "sql", "power bi", "tableau", "python", "pandas", "matplotlib"],
+        "ml engineer": ["python", "tensorflow", "pytorch", "scikit-learn", "docker", "kubernetes", "aws"],
+        "backend developer": ["python", "java", "node.js", "sql", "mongodb", "rest api", "docker"],
+        "frontend developer": ["html", "css", "javascript", "react", "vue", "angular", "bootstrap"],
+        "full stack developer": ["html", "css", "javascript", "react", "node.js", "mongodb", "express", "git"],
+        "devops engineer": ["docker", "kubernetes", "jenkins", "aws", "linux", "terraform", "ci/cd"],
+        "cybersecurity analyst": ["network security", "penetration testing", "firewall", "encryption", "linux"],
     }
     text_lower = text.lower()
     skills = []
@@ -294,9 +297,15 @@ def extract_skills(text):
 
 def match_skills(user_skills, role):
     role_skills = {
-        "data scientist": ["python", "machine learning", "pandas", "numpy", "sql", "statistics"],
-        "web developer": ["html", "css", "javascript", "react", "node.js", "mongodb"],
-        "data analyst": ["excel", "sql", "power bi", "tableau", "python"],
+        "data scientist": ["python", "machine learning", "pandas", "numpy", "sql", "statistics", "tensorflow", "keras"],
+        "web developer": ["html", "css", "javascript", "react", "node.js", "mongodb", "express", "git"],
+        "data analyst": ["excel", "sql", "power bi", "tableau", "python", "pandas", "matplotlib"],
+        "ml engineer": ["python", "tensorflow", "pytorch", "scikit-learn", "docker", "kubernetes", "aws"],
+        "backend developer": ["python", "java", "node.js", "sql", "mongodb", "rest api", "docker"],
+        "frontend developer": ["html", "css", "javascript", "react", "vue", "angular", "bootstrap"],
+        "full stack developer": ["html", "css", "javascript", "react", "node.js", "mongodb", "express", "git"],
+        "devops engineer": ["docker", "kubernetes", "jenkins", "aws", "linux", "terraform", "ci/cd"],
+        "cybersecurity analyst": ["network security", "penetration testing", "firewall", "encryption", "linux"],
     }
     required = role_skills.get(role.lower(), [])
     matched = [s for s in required if s in user_skills]
@@ -337,58 +346,65 @@ def login_page():
             if st.form_submit_button(send_text, use_container_width=True, disabled=send_disabled):
                 if email and re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
                     if st.session_state.otp_resend_attempts < 5:
-                        otp = generate_otp()
-                        st.session_state.otp = otp
-                        st.session_state.otp_expiry = get_indian_time() + timedelta(minutes=2)
-                        st.session_state.email = email
-                        st.session_state.last_otp_sent_time = get_indian_time()
-                        st.session_state.otp_resend_attempts += 1
-                        st.session_state.timer_running = True
-                        if send_otp(email, otp):
-                            st.success("✅ OTP sent! Valid for 2 minutes.")
+                        with st.spinner("📧 Sending OTP..."):
+                            otp = generate_otp()
+                            st.session_state.otp = otp
+                            st.session_state.otp_expiry = get_indian_time() + timedelta(minutes=2)
+                            st.session_state.email = email
+                            st.session_state.last_otp_sent_time = get_indian_time()
+                            st.session_state.otp_resend_attempts += 1
+                            st.session_state.timer_running = True
+                            if send_otp(email, otp):
+                                st.success("✅ OTP sent successfully! Check your email.")
                     else:
-                        st.error("❌ Max resend limit reached")
+                        st.error("❌ Maximum resend limit reached")
                 else:
-                    st.error("❌ Valid email required")
+                    st.error("❌ Please enter a valid email address")
         
         with col2:
             if st.form_submit_button("🔄 Resend OTP", use_container_width=True):
                 if email and st.session_state.otp_resend_attempts < 5:
-                    otp = generate_otp()
-                    st.session_state.otp = otp
-                    st.session_state.otp_expiry = get_indian_time() + timedelta(minutes=2)
-                    st.session_state.last_otp_sent_time = get_indian_time()
-                    st.session_state.otp_resend_attempts += 1
-                    send_otp(email, otp)
-                    st.success("✅ New OTP sent!")
+                    with st.spinner("📧 Resending OTP..."):
+                        otp = generate_otp()
+                        st.session_state.otp = otp
+                        st.session_state.otp_expiry = get_indian_time() + timedelta(minutes=2)
+                        st.session_state.last_otp_sent_time = get_indian_time()
+                        st.session_state.otp_resend_attempts += 1
+                        send_otp(email, otp)
+                        st.success("✅ New OTP sent!")
+                else:
+                    st.error("❌ Please enter email or limit reached")
         
-        otp_input = st.text_input("🔑 Enter OTP", type="password")
+        otp_input = st.text_input("🔑 Enter OTP", type="password", placeholder="Enter 6-digit code")
         
         if st.session_state.otp_expiry:
             remaining = (st.session_state.otp_expiry - get_indian_time()).seconds
             if remaining > 0:
                 st.progress(remaining / 120)
-                st.caption(f"⏰ Expires in: {remaining // 60}:{remaining % 60:02d}")
+                st.caption(f"⏰ OTP expires in: {remaining // 60}:{remaining % 60:02d}")
         
         if st.form_submit_button("✅ Verify & Login", use_container_width=True, type="primary"):
             if not otp_input:
-                st.error("❌ Enter OTP")
+                st.error("❌ Please enter OTP")
             elif is_otp_expired():
-                st.error("❌ OTP expired")
+                st.error("❌ OTP has expired. Please request a new one.")
             elif st.session_state.otp_attempts >= 3:
                 st.session_state.otp_locked_until = get_indian_time() + timedelta(minutes=15)
-                st.error("🔒 Too many attempts. Locked for 15 minutes")
+                st.error("🔒 Too many failed attempts. Account locked for 15 minutes")
                 st.rerun()
             elif otp_input == st.session_state.get("otp"):
-                st.session_state.logged_in = True
-                st.session_state.username = st.session_state.email
-                reset_otp_state()
-                st.success("✅ Login successful!")
-                time.sleep(0.5)
-                st.rerun()
+                with st.spinner("🔄 Logging you in..."):
+                    time.sleep(0.5)
+                    st.session_state.logged_in = True
+                    st.session_state.username = st.session_state.email
+                    reset_otp_state()
+                    st.success("✅ Login successful! Redirecting...")
+                    time.sleep(0.5)
+                    st.rerun()
             else:
                 st.session_state.otp_attempts += 1
-                st.error(f"❌ Invalid OTP. {3 - st.session_state.otp_attempts} attempts left")
+                remaining = 3 - st.session_state.otp_attempts
+                st.error(f"❌ Invalid OTP. {remaining} attempt{'s' if remaining != 1 else ''} remaining")
     
     st.markdown("---")
     st.markdown("""
@@ -405,7 +421,6 @@ if not st.session_state.logged_in:
 # Custom CSS - NO WHITE BOXES
 st.markdown("""
 <style>
-    /* Remove default white backgrounds */
     .stApp {
         background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
     }
@@ -415,12 +430,10 @@ st.markdown("""
         padding: 20px;
     }
     
-    /* Make all containers transparent */
     div[data-testid="stVerticalBlock"] > div {
         background: transparent !important;
     }
     
-    /* Style cards without white background */
     .stMetric {
         background: rgba(30, 41, 59, 0.5);
         border-radius: 15px;
@@ -428,7 +441,6 @@ st.markdown("""
         backdrop-filter: blur(10px);
     }
     
-    /* Remove white background from file uploader */
     .stFileUploader > div {
         background: rgba(30, 41, 59, 0.3) !important;
         backdrop-filter: blur(10px);
@@ -436,17 +448,14 @@ st.markdown("""
         border-radius: 15px;
     }
     
-    /* Transparent chat containers */
     .stMarkdown, .stTextInput, .stButton {
         background: transparent !important;
     }
     
-    /* Make all text white */
     .stMarkdown, .stMarkdown p, .stMarkdown div, .stMetric label {
         color: white !important;
     }
     
-    /* Button styling */
     .stButton > button {
         background: linear-gradient(90deg, #6366f1, #22c55e) !important;
         color: white !important;
@@ -460,7 +469,6 @@ st.markdown("""
         box-shadow: 0 5px 20px rgba(99,102,241,0.4);
     }
     
-    /* Input fields dark */
     .stTextInput > div > div > input {
         background-color: #1e293b !important;
         color: white !important;
@@ -468,19 +476,16 @@ st.markdown("""
         border-radius: 10px !important;
     }
     
-    /* Remove white box from chat history */
     .stAlert, .stInfo, .stSuccess, .stWarning, .stError {
         background: rgba(30, 41, 59, 0.5) !important;
         backdrop-filter: blur(10px);
         border: none !important;
     }
     
-    /* Hide default Streamlit white containers */
     .element-container, .stMarkdown, .stVerticalBlock {
         background: transparent !important;
     }
     
-    /* Metric cards */
     [data-testid="stMetric"] {
         background: rgba(30, 41, 59, 0.5);
         backdrop-filter: blur(10px);
@@ -488,14 +493,13 @@ st.markdown("""
         padding: 15px;
     }
     
-    /* File uploader text */
     .stFileUploader label {
         color: white !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Header with title only (no logout button here)
+# Header
 st.markdown(f"""
 <div style='text-align: center; padding: 20px;'>
     <h1 style='font-size: 42px; background: linear-gradient(135deg, #6366f1, #22c55e); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 0;'>
@@ -524,38 +528,51 @@ main_col, chat_col = st.columns([2, 1])
 with main_col:
     # Upload Section
     st.markdown("### 📄 Upload Your Resume")
-    uploaded_file = st.file_uploader("Choose PDF", type=["pdf"], label_visibility="collapsed")
+    st.caption("💡 Supported format: PDF only")
+    
+    uploaded_file = st.file_uploader("Choose PDF file", type=["pdf"], label_visibility="collapsed")
     
     if uploaded_file:
-        st.success(f"✅ {uploaded_file.name} uploaded")
+        st.success(f"✅ File uploaded successfully: {uploaded_file.name}")
         
-        with st.spinner("📖 Reading resume..."):
-            resume_text = extract_text(uploaded_file)
-            st.session_state.resume_text = resume_text
+        if not st.session_state.resume_text:
+            with st.spinner("📖 Reading and analyzing your resume..."):
+                time.sleep(1)
+                resume_text = extract_text(uploaded_file)
+                st.session_state.resume_text = resume_text
+            st.success("✅ Resume processed successfully!")
         
         if not st.session_state.analyze:
-            st.subheader("📄 Preview")
-            st.text(resume_text[:500])
+            st.subheader("📄 Resume Preview")
+            st.text_area("Preview", resume_text[:500], height=200, disabled=True)
+            
             if st.button("🚀 Start Analysis", use_container_width=True):
                 st.session_state.analyze = True
                 st.rerun()
         
         else:
-            job_role = st.text_input("🎯 Target Job Role", placeholder="data scientist, web developer, data analyst")
+            job_role = st.text_input(
+                "🎯 Target Job Role", 
+                placeholder="Example: Data Scientist, Web Developer, Data Analyst, ML Engineer",
+                help="Enter the job role you want to target for your resume"
+            )
             
             if job_role:
-                with st.spinner("🔍 Analyzing..."):
+                with st.spinner("🔍 Analyzing your resume against the job role..."):
+                    time.sleep(1)
                     user_skills = extract_skills(resume_text)
                     matched, missing, score = match_skills(user_skills, job_role)
                     
                     if not st.session_state.saved:
                         save_history(st.session_state.username, job_role, score)
                         st.session_state.saved = True
+                        st.success("✅ Analysis saved to history!")
                     
                     # Store for chat
                     st.session_state.current_job_role = job_role
                     st.session_state.matched_skills = matched
                     st.session_state.missing_skills = missing
+                    st.session_state.final_score = score
                     
                     # Score Display
                     col1, col2, col3 = st.columns(3)
@@ -567,45 +584,68 @@ with main_col:
                         </div>
                         """, unsafe_allow_html=True)
                     
+                    # Feedback based on score
+                    if score >= 80:
+                        st.success("🌟 Excellent match! Your resume is well-aligned with this role!")
+                    elif score >= 60:
+                        st.info("📈 Good match! Add the missing skills to become an ideal candidate.")
+                    else:
+                        st.warning("⚠️ Low match. Consider upskilling or targeting a different role.")
+                    
                     # Skills Display
                     col1, col2 = st.columns(2)
                     with col1:
                         st.markdown("### ✅ Matched Skills")
-                        for s in matched:
-                            st.write(f"✔ {s}")
+                        if matched:
+                            for s in matched:
+                                st.write(f"✔ {s}")
+                        else:
+                            st.info("No matching skills found. Consider adding relevant keywords to your resume.")
+                    
                     with col2:
                         st.markdown("### ❌ Missing Skills")
-                        for s in missing:
-                            st.write(f"✖ {s}")
+                        if missing:
+                            for s in missing:
+                                st.write(f"✖ {s}")
+                        else:
+                            st.success("🎉 Congratulations! You have all required skills!")
                     
                     # Actions
                     col1, col2 = st.columns(2)
                     with col1:
                         if st.button("📄 Download PDF Report", use_container_width=True):
-                            report_data = {"job_role": job_role, "score": score, "matched": matched, "missing": missing}
-                            pdf = create_professional_pdf(report_data, st.session_state.username)
-                            st.download_button("⬇ Click to Download", pdf, f"Resume_Report_{job_role}.pdf", use_container_width=True)
+                            with st.spinner("📄 Generating your professional PDF report..."):
+                                report_data = {"job_role": job_role, "score": score, "matched": matched, "missing": missing}
+                                pdf = create_professional_pdf(report_data, st.session_state.username)
+                                st.success("✅ Report generated successfully!")
+                                st.download_button("⬇ Click to Download PDF", pdf, f"Resume_Report_{job_role}.pdf", use_container_width=True)
                     
                     with col2:
-                        if st.button("🔄 New Analysis", use_container_width=True):
-                            st.session_state.analyze = False
-                            st.session_state.saved = False
-                            st.rerun()
+                        if st.button("🔄 Analyze Another Resume", use_container_width=True):
+                            with st.spinner("🔄 Resetting for new analysis..."):
+                                time.sleep(0.5)
+                                st.session_state.analyze = False
+                                st.session_state.saved = False
+                                st.session_state.resume_text = None
+                                st.rerun()
 
 with chat_col:
-    st.markdown("### 🤖 AI Assistant")
-    st.caption("Ask about resumes, careers & skills")
+    st.markdown("### 🤖 AI Career Assistant")
+    st.caption("💡 Ask me anything about resumes, careers, or skills!")
     st.markdown("---")
     
     # Chat History
     chat_container = st.container()
     with chat_container:
-        for msg in st.session_state.chat_history[-8:]:
-            if msg["role"] == "user":
-                st.markdown(f"**🙋 You:** {msg['content']}")
-            else:
-                st.markdown(f"**🤖 AI:** {msg['content']}")
-            st.markdown("---")
+        if not st.session_state.chat_history:
+            st.info("👋 Hello! Ask me questions like:\n• How to improve my resume?\n• What career path is best?\n• How to learn missing skills?")
+        else:
+            for msg in st.session_state.chat_history[-8:]:
+                if msg["role"] == "user":
+                    st.markdown(f"**🙋 You:** {msg['content']}")
+                else:
+                    st.markdown(f"**🤖 AI:** {msg['content']}")
+                st.markdown("---")
     
     # Quick Questions
     st.markdown("#### 📌 Quick Questions")
@@ -613,48 +653,60 @@ with chat_col:
     
     with col_q1:
         if st.button("📝 Improve Resume", use_container_width=True):
-            ctx = f"Target: {st.session_state.current_job_role}"
-            resp = get_ai_response("How to improve resume?", ctx)
-            st.session_state.chat_history.append({"role": "user", "content": "How to improve my resume?"})
-            st.session_state.chat_history.append({"role": "assistant", "content": resp})
-            st.rerun()
+            with st.spinner("🤖 Getting AI response..."):
+                ctx = f"Target: {st.session_state.current_job_role}"
+                resp = get_ai_response("How to improve resume?", ctx)
+                st.session_state.chat_history.append({"role": "user", "content": "How to improve my resume?"})
+                st.session_state.chat_history.append({"role": "assistant", "content": resp})
+                st.success("✅ Response received!")
+                st.rerun()
         
         if st.button("💪 Missing Skills", use_container_width=True):
-            resp = get_ai_response("How to learn missing skills?", f"Missing: {', '.join(st.session_state.missing_skills)}")
-            st.session_state.chat_history.append({"role": "user", "content": "How to learn missing skills?"})
-            st.session_state.chat_history.append({"role": "assistant", "content": resp})
-            st.rerun()
+            with st.spinner("🤖 Getting AI response..."):
+                resp = get_ai_response("How to learn missing skills?", f"Missing: {', '.join(st.session_state.missing_skills)}")
+                st.session_state.chat_history.append({"role": "user", "content": "How to learn missing skills?"})
+                st.session_state.chat_history.append({"role": "assistant", "content": resp})
+                st.success("✅ Response received!")
+                st.rerun()
     
     with col_q2:
         if st.button("🎯 Career Path", use_container_width=True):
-            resp = get_ai_response("Career advice", f"Skills: {', '.join(st.session_state.matched_skills)}")
-            st.session_state.chat_history.append({"role": "user", "content": "Career path advice?"})
-            st.session_state.chat_history.append({"role": "assistant", "content": resp})
-            st.rerun()
+            with st.spinner("🤖 Getting AI response..."):
+                resp = get_ai_response("Career advice", f"Skills: {', '.join(st.session_state.matched_skills)}")
+                st.session_state.chat_history.append({"role": "user", "content": "What career path should I follow?"})
+                st.session_state.chat_history.append({"role": "assistant", "content": resp})
+                st.success("✅ Response received!")
+                st.rerun()
         
         if st.button("🚀 Project Ideas", use_container_width=True):
-            resp = get_ai_response("Project ideas for portfolio", f"Role: {st.session_state.current_job_role}")
-            st.session_state.chat_history.append({"role": "user", "content": "Project ideas?"})
-            st.session_state.chat_history.append({"role": "assistant", "content": resp})
-            st.rerun()
+            with st.spinner("🤖 Getting AI response..."):
+                resp = get_ai_response("Project ideas for portfolio", f"Role: {st.session_state.current_job_role}")
+                st.session_state.chat_history.append({"role": "user", "content": "What projects should I build?"})
+                st.session_state.chat_history.append({"role": "assistant", "content": resp})
+                st.success("✅ Response received!")
+                st.rerun()
     
     st.markdown("---")
     
     # Custom Question
-    user_q = st.text_input("💬 Ask anything...", placeholder="e.g., Best projects for beginners?")
+    user_q = st.text_input("💬 Ask anything...", placeholder="e.g., Best Python projects for beginners?")
     if st.button("📨 Send", use_container_width=True) and user_q:
-        resp = get_ai_response(user_q, f"Role: {st.session_state.current_job_role}")
-        st.session_state.chat_history.append({"role": "user", "content": user_q})
-        st.session_state.chat_history.append({"role": "assistant", "content": resp})
-        st.rerun()
+        with st.spinner("🤖 Thinking..."):
+            resp = get_ai_response(user_q, f"Role: {st.session_state.current_job_role}")
+            st.session_state.chat_history.append({"role": "user", "content": user_q})
+            st.session_state.chat_history.append({"role": "assistant", "content": resp})
+            st.success("✅ Response received!")
+            st.rerun()
     
     if st.button("🗑️ Clear Chat", use_container_width=True):
         st.session_state.chat_history = []
+        st.success("✅ Chat history cleared!")
         st.rerun()
 
 # History Section
 st.markdown("---")
 st.markdown("### 📜 Analysis History")
+st.caption("Your previous resume analyses are saved here")
 
 try:
     with open("history.json", "r") as f:
@@ -666,31 +718,22 @@ if st.session_state.username in hist_data and hist_data[st.session_state.usernam
     for idx, item in enumerate(reversed(hist_data[st.session_state.username][-5:])):
         col1, col2 = st.columns([5, 1])
         with col1:
-            st.write(f"💼 {item['job_role']} | 🎯 {item['score']}% | 🕒 {item['date']}")
+            st.write(f"💼 **{item['job_role']}** | 🎯 Score: {item['score']}% | 🕒 {item['date']}")
         with col2:
-            if st.button(f"🗑️", key=f"del_{idx}"):
+            if st.button(f"🗑️ Delete", key=f"del_{idx}"):
                 original_idx = len(hist_data[st.session_state.username]) - 1 - idx
-                delete_history(st.session_state.username, original_idx)
-                st.rerun()
+                if delete_history(st.session_state.username, original_idx):
+                    st.success("✅ Entry deleted successfully!")
+                    st.rerun()
+    
+    st.caption(f"📊 Total analyses: {len(hist_data[st.session_state.username])}")
 else:
-    st.info("📭 No analysis history yet. Upload a resume to get started!")
+    st.info("📭 No analysis history yet. Upload a resume and analyze it to get started!")
 
 # ============= LOGOUT BUTTON AT BOTTOM =============
 st.markdown("---")
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
     if st.button("🚪 Logout", use_container_width=True):
-        st.session_state.logged_in = False
-        st.rerun()
-
-# Footer
-st.markdown(f"""
-<div style='text-align: center; padding: 20px; margin-top: 20px;'>
-    <p style='color: #666; font-size: 12px;'>
-        © 2025 {APP_NAME} v{VERSION} | Secure & Private | Made with ❤️ for Job Seekers
-    </p>
-    <p style='color: #444; font-size: 10px;'>
-        🚀 Features: AI Analysis • PDF Reports • Career Assistant • OTP Security
-    </p>
-</div>
-""", unsafe_allow_html=True)
+        with st.spinner("🚪 Logging out..."):
+            time.sleep(0.5)
